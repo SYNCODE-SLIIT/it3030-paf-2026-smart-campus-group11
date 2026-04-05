@@ -23,51 +23,21 @@ import {
 } from '@/components/ui';
 
 export default function Home() {
-  const [theme, setTheme] = React.useState<'light' | 'dark'>('light');
   const [tab1, setTab1] = React.useState('overview');
   const [tab2, setTab2] = React.useState('all');
   const [tab3, setTab3] = React.useState('active');
-
-  // Sync with what the blocking script already applied, and follow system changes
-  React.useEffect(() => {
-    const current = document.documentElement.getAttribute('data-theme') as 'light' | 'dark';
-    if (current) setTheme(current);
-
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const onSystemChange = (e: MediaQueryListEvent) => {
-      if (!localStorage.getItem('theme')) {
-        const next = e.matches ? 'dark' : 'light';
-        document.documentElement.setAttribute('data-theme', next);
-        setTheme(next);
-      }
-    };
-    mq.addEventListener('change', onSystemChange);
-    return () => mq.removeEventListener('change', onSystemChange);
-  }, []);
-
-  const toggleTheme = () => {
-    const next = theme === 'light' ? 'dark' : 'light';
-    setTheme(next);
-    document.documentElement.setAttribute('data-theme', next);
-    localStorage.setItem('theme', next);
-  };
 
   return (
     <div style={{ maxWidth: 960, margin: '0 auto', padding: '48px 24px 80px' }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 56 }}>
-        <div>
-          <p style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>
-            Smart Campus · UI Kit
-          </p>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 700, color: 'var(--text-h)', letterSpacing: '-0.03em' }}>
-            Component Preview
-          </h1>
-        </div>
-        <Button variant="glass" size="sm" onClick={toggleTheme}>
-          {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
-        </Button>
+      <div style={{ marginBottom: 56 }}>
+        <p style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>
+          Smart Campus · UI Kit
+        </p>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 700, color: 'var(--text-h)', letterSpacing: '-0.03em' }}>
+          Component Preview
+        </h1>
       </div>
 
       {/* ── BUTTONS ── */}
