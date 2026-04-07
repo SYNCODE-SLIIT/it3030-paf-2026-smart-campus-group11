@@ -90,6 +90,7 @@ export function Navbar({ items, currentPath, user, onLogin, onLogout, onNavigate
             ))}
           </nav>
 
+
           {/* Mobile toggle */}
           <button
             className="flex md:hidden"
@@ -141,12 +142,12 @@ export function Navbar({ items, currentPath, user, onLogin, onLogout, onNavigate
               >
                 {user.name}
               </span>
-              <Button variant="ghost" size="sm" onClick={onLogout}>
+              <Button variant="ghost" size="sm" onClick={onLogout} style={{ borderRadius: 100 }}>
                 Sign out
               </Button>
             </>
           ) : (
-            <Button variant="glass" size="sm" onClick={onLogin}>
+            <Button variant="glass" size="sm" onClick={onLogin} style={{ borderRadius: 100 }}>
               Sign in
             </Button>
           )}
@@ -258,12 +259,21 @@ export function Navbar({ items, currentPath, user, onLogin, onLogout, onNavigate
 
 function NavLink({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   const [hovered, setHovered] = useState(false);
+  const [bouncing, setBouncing] = useState(false);
+
+  function handleClick() {
+    if (!active) {
+      setBouncing(true);
+      onClick();
+    }
+  }
 
   return (
     <button
-      onClick={onClick}
+      onClick={handleClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onAnimationEnd={() => setBouncing(false)}
       style={{
         height: 34,
         padding: '0 14px',
@@ -284,6 +294,8 @@ function NavLink({ label, active, onClick }: { label: string; active: boolean; o
         boxShadow: active
           ? 'inset 0 1px 0 rgba(255,255,255,.45), inset 0 -1px 0 rgba(0,0,0,.1), 0 2px 8px rgba(238,202,68,.3)'
           : 'none',
+        animation: bouncing ? 'toggle-bounce .35s ease forwards' : 'none',
+        transformOrigin: 'center',
       }}
     >
       {label}
