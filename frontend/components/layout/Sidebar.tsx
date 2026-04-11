@@ -101,7 +101,7 @@ function SidebarNavItem({
         boxShadow: active
           ? 'inset 0 1px 0 rgba(255,255,255,.45), inset 0 -1px 0 rgba(0,0,0,.08), 0 2px 8px rgba(238,202,68,.28)'
           : 'none',
-        animation: bouncing ? 'nav-bounce .3s ease forwards' : 'none',
+        animation: bouncing ? 'nav-bounce .35s ease forwards' : 'none',
         transformOrigin: 'center',
       }}
     >
