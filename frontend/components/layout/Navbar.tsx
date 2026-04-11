@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { Avatar, Button, GlassPill } from '@/components/ui';
 import { Menu, X } from 'lucide-react';
 
@@ -75,6 +76,7 @@ export function Navbar({ items, currentPath, user, onLogin, onLogout, onNavigate
               <NavLink
                 key={item.href}
                 label={item.label}
+                href={item.href}
                 active={currentPath === item.href}
                 onClick={() => onNavigate?.(item.href)}
               />
@@ -183,16 +185,14 @@ export function Navbar({ items, currentPath, user, onLogin, onLogout, onNavigate
             {items.map((item) => {
               const active = currentPath === item.href;
               return (
-                <button
+                <Link
                   key={item.href}
+                  href={item.href}
                   onClick={() => { onNavigate?.(item.href); setMobileOpen(false); }}
                   style={{
-                    background: 'none',
-                    border: 'none',
                     borderBottom: '1px solid var(--border-strong)',
                     padding: '20px 0',
-                    textAlign: 'left',
-                    cursor: 'pointer',
+                    textDecoration: 'none',
                     fontFamily: 'var(--font-display)',
                     fontWeight: 800,
                     fontSize: 32,
@@ -202,7 +202,7 @@ export function Navbar({ items, currentPath, user, onLogin, onLogout, onNavigate
                   }}
                 >
                   {item.label}
-                </button>
+                </Link>
               );
             })}
           </nav>
@@ -246,28 +246,31 @@ export function Navbar({ items, currentPath, user, onLogin, onLogout, onNavigate
   );
 }
 
-function NavLink({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+function NavLink({ label, href, active, onClick }: { label: string; href: string; active: boolean; onClick?: () => void }) {
   const [hovered, setHovered] = useState(false);
   const [bouncing, setBouncing] = useState(false);
 
   function handleClick() {
     if (!active) {
       setBouncing(true);
-      onClick();
+      onClick?.();
     }
   }
 
   return (
-    <button
+    <Link
+      href={href}
       onClick={handleClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onAnimationEnd={() => setBouncing(false)}
       style={{
+        display: 'inline-flex',
+        alignItems: 'center',
         height: 34,
         padding: '0 14px',
         borderRadius: 100,
-        border: 'none',
+        textDecoration: 'none',
         cursor: 'pointer',
         fontFamily: 'var(--font-display)',
         fontWeight: 700,
@@ -288,6 +291,6 @@ function NavLink({ label, active, onClick }: { label: string; active: boolean; o
       }}
     >
       {label}
-    </button>
+    </Link>
   );
 }

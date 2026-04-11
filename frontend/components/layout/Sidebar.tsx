@@ -29,6 +29,8 @@ export interface SidebarProps {
   notificationCount?: number;
   onNavigate?: (item: NavItem) => void;
   onLogout?: () => void;
+  /** Render as a relative-positioned block for inline demos */
+  inline?: boolean;
 }
 
 export const defaultSidebarSections: NavSection[] = [
@@ -131,6 +133,7 @@ export function Sidebar({
   notificationCount = 0,
   onNavigate,
   onLogout,
+  inline = false,
 }: SidebarProps) {
   const [active, setActive] = useState(activePath);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -163,7 +166,14 @@ export function Sidebar({
     <GlassPill
       as="aside"
       radius={22}
-      style={{
+      style={inline ? {
+        position: 'relative',
+        width: 224,
+        height: 480,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'visible',
+      } : {
         position: 'fixed',
         top: 24,
         left: 24,
