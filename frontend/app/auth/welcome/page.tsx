@@ -121,6 +121,7 @@ function AuthWelcomeContent() {
   const hasInviteRetryState = !!inviteFlowState;
   const mismatchedInviteSession = !isInviteFlowEmailMatch(inviteFlowState, session?.user?.email);
   const shouldHidePasswordSetup = !!session && hasInviteRetryState && mismatchedInviteSession;
+  const canContinueToApp = !!appUser && !shouldHidePasswordSetup;
 
   const resolvedNextPath = React.useMemo(() => {
     if (nextFromQuery) {
@@ -155,6 +156,15 @@ function AuthWelcomeContent() {
     setIsHydratingUser(true);
     void refreshMe().finally(() => setIsHydratingUser(false));
   }, [appUser, isHydratingUser, lastHydratedSessionUserId, loading, refreshMe, session]);
+
+  React.useEffect(() => {
+    if (loading || isHydratingUser || reason || !canContinueToApp) {
+      return;
+    }
+
+    clearInviteFlowState();
+    router.replace(resolvedNextPath);
+  }, [canContinueToApp, isHydratingUser, loading, reason, resolvedNextPath, router]);
 
   const displayEmail = inviteFlowState?.expectedEmail ?? session?.user?.email ?? appUser?.email ?? 'Invited account';
 
@@ -317,7 +327,7 @@ function AuthWelcomeContent() {
               <Button
                 variant="glass"
                 size="sm"
-                disabled={!appUser}
+                disabled={!canContinueToApp}
                 iconRight={<ArrowRight size={14} />}
                 onClick={() => {
                   clearInviteFlowState();

@@ -218,7 +218,7 @@ function AuthCallbackClient() {
 
         if (isInviteFlow) {
           clearInviteFlowState();
-          router.replace(toInviteWelcome(undefined, nextPath));
+          router.replace(nextPath);
           return;
         }
 
