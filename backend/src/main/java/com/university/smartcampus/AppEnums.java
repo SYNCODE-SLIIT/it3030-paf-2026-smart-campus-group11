@@ -28,4 +28,24 @@ public final class AppEnums {
         ADMIN,
         MANAGER
     }
+
+    public enum BookingStatus {
+        PENDING,
+        APPROVED,
+        REJECTED,
+        CANCELLED
+    }
+
+    public enum ResourceCategory {
+        ROOM,
+        LAB,
+        VEHICLE,
+        EQUIPMENT,
+        OTHER
+    }
+
+    public enum ResourceStatus {
+        ACTIVE,
+        INACTIVE
+    }
 }
