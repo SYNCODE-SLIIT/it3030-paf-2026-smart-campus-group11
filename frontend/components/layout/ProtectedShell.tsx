@@ -22,21 +22,32 @@ export function ProtectedShell({
   const { signOut } = useAuth();
 
   const sections = React.useMemo<NavSection[]>(() => {
+    const workspaceItems =
+      user.userType === 'STUDENT'
+        ? [
+            {
+              label: 'Account Security',
+              icon: KeyRound,
+              href: '/account/security',
+            },
+          ]
+        : [
+            {
+              label: 'Portal Overview',
+              icon: LayoutDashboard,
+              href: '/portal',
+            },
+            {
+              label: 'Account Security',
+              icon: KeyRound,
+              href: '/account/security',
+            },
+          ];
+
     const portalSections: NavSection[] = [
       {
         title: 'Workspace',
-        items: [
-          {
-            label: 'Portal Overview',
-            icon: LayoutDashboard,
-            href: '/portal',
-          },
-          {
-            label: 'Account Security',
-            icon: KeyRound,
-            href: '/account/security',
-          },
-        ],
+        items: workspaceItems,
       },
     ];
 
