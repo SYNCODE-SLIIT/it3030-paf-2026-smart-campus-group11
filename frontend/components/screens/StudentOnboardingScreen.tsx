@@ -174,9 +174,12 @@ export function StudentOnboardingScreen({ user }: { user?: UserResponse }) {
 
         await completeStudentOnboarding(session.access_token, payload);
         const refreshedUser = await refreshMe();
+        const redirectUser = refreshedUser ?? resolvedUser;
 
         // Use a full navigation so role/onboarding guards rehydrate from the latest backend state.
-        window.location.assign(getUserHomePath(refreshedUser ?? resolvedUser));
+        if (redirectUser) {
+          window.location.assign(getUserHomePath(redirectUser));
+        }
       } catch (error) {
         setAlert({
           variant: 'error',

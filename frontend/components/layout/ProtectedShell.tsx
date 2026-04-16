@@ -21,6 +21,14 @@ export function ProtectedShell({
   const router = useRouter();
   const { signOut } = useAuth();
 
+  const handleSignOut = React.useCallback(() => {
+    void signOut()
+      .catch(() => undefined)
+      .finally(() => {
+        router.push('/auth/logout?reason=signed_out');
+      });
+  }, [router, signOut]);
+
   const sections = React.useMemo<NavSection[]>(() => {
     const workspaceItems =
       user.userType === 'STUDENT'
@@ -89,9 +97,7 @@ export function ProtectedShell({
             label: 'Sign out',
             icon: LogOut,
             danger: true,
-            onClick: () => {
-              void signOut().then(() => router.push('/login?reason=signed_out'));
-            },
+            onClick: handleSignOut,
           },
         ]}
         onNavigate={(item) => {
@@ -99,9 +105,7 @@ export function ProtectedShell({
             router.push(item.href);
           }
         }}
-        onLogout={() => {
-          void signOut().then(() => router.push('/login?reason=signed_out'));
-        }}
+        onLogout={handleSignOut}
       />
 
       <main

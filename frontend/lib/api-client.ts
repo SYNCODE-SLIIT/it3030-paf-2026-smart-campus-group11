@@ -45,18 +45,21 @@ interface RequestOptions {
   accessToken?: string | null;
   body?: unknown;
   cache?: RequestCache;
+  retryOnUpstreamFailure?: boolean;
 }
 
 const RETRYABLE_UPSTREAM_STATUSES = new Set([502, 503, 504]);
 
 function shouldRetryRequest(response: Response, options: RequestOptions, attempt: number) {
   const method = options.method ?? 'GET';
-  return method === 'GET' && attempt < 1 && RETRYABLE_UPSTREAM_STATUSES.has(response.status);
+  const allowRetry = method === 'GET' || options.retryOnUpstreamFailure === true;
+  return allowRetry && attempt < 1 && RETRYABLE_UPSTREAM_STATUSES.has(response.status);
 }
 
 function shouldRetryNetworkError(options: RequestOptions, attempt: number) {
   const method = options.method ?? 'GET';
-  return method === 'GET' && attempt < 1;
+  const allowRetry = method === 'GET' || options.retryOnUpstreamFailure === true;
+  return allowRetry && attempt < 1;
 }
 
 async function waitBeforeRetry() {
@@ -165,6 +168,7 @@ export async function syncSession(accessToken: string) {
   return request<SessionSyncResponse>('/api/auth/session/sync', {
     method: 'POST',
     accessToken,
+    retryOnUpstreamFailure: true,
   });
 }
 

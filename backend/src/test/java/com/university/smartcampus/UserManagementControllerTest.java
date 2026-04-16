@@ -89,6 +89,34 @@ class UserManagementControllerTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    void unauthenticatedUserCannotAccessAdminUsersEndpoint() throws Exception {
+        mockMvc.perform(get("/api/admin/users"))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void studentCannotAccessAdminUsersEndpoint() throws Exception {
+        seedStudent("student.no.admin@campus.test", AccountStatus.ACTIVE, true);
+
+        mockMvc.perform(get("/api/admin/users")
+                .with(jwtFor("student.no.admin@campus.test")))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void unauthenticatedUserCannotAccessStudentOnboardingEndpoint() throws Exception {
+        mockMvc.perform(get("/api/students/me/onboarding"))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void adminCannotAccessStudentOnboardingEndpoint() throws Exception {
+        mockMvc.perform(get("/api/students/me/onboarding")
+                .with(jwtFor("admin@campus.test")))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
     void rejectsManagerCreationWithoutManagerRoles() throws Exception {
         CreateUserRequest request = new CreateUserRequest(
             "manager-no-roles@campus.test",
