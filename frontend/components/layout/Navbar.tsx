@@ -10,7 +10,7 @@ export interface NavItem {
   label: string;
   href: string;
   /** Roles that can see this item. Omit to show to everyone. */
-  allowedRoles?: UserType[];
+  allowedUserTypes?: UserType[];
 }
 
 export interface NavUser {

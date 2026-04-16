@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import { LoginScreen } from '@/components/screens/LoginScreen';
-import { getUserHomePath, needsStudentOnboarding } from '@/lib/auth-routing';
+import { getUserHomePath, needsStudentOnboarding, STUDENT_ONBOARDING_PATH } from '@/lib/auth-routing';
 import { getServerAuthState } from '@/lib/server-auth';
 
 export default async function LoginPage({
@@ -15,7 +15,7 @@ export default async function LoginPage({
 
   if (authState.appUser) {
     if (needsStudentOnboarding(authState.appUser)) {
-      redirect('/student/onboarding');
+      redirect(STUDENT_ONBOARDING_PATH);
     }
 
     redirect(getUserHomePath(authState.appUser));

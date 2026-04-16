@@ -7,7 +7,12 @@ import { useAuth } from '@/components/providers/AuthProvider';
 import { LoginFormCard } from '@/components/screens/login/LoginFormCard';
 import { LoginSideCards } from '@/components/screens/login/LoginSideCards';
 import { getErrorMessage } from '@/lib/api-client';
-import { getLoginReasonAlert, getUserHomePath, needsStudentOnboarding } from '@/lib/auth-routing';
+import {
+  getLoginReasonAlert,
+  getUserHomePath,
+  needsStudentOnboarding,
+  STUDENT_ONBOARDING_PATH,
+} from '@/lib/auth-routing';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -28,7 +33,7 @@ export function LoginScreen({ reason }: { reason: string | null }) {
   React.useEffect(() => {
     if (!appUser) return;
     if (needsStudentOnboarding(appUser)) {
-      router.replace('/student/onboarding');
+      router.replace(STUDENT_ONBOARDING_PATH);
       return;
     }
     router.replace(getUserHomePath(appUser));
@@ -86,7 +91,7 @@ export function LoginScreen({ reason }: { reason: string | null }) {
 
       if (currentUser) {
         if (needsStudentOnboarding(currentUser)) {
-          router.replace('/student/onboarding');
+          router.replace(STUDENT_ONBOARDING_PATH);
         } else {
           router.replace(getUserHomePath(currentUser));
         }

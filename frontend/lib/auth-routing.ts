@@ -1,11 +1,21 @@
 import type { NextStep, UserResponse } from '@/lib/api-types';
 
+export const STUDENT_ONBOARDING_PATH = '/students/onboarding';
+
 export function getUserHomePath(user: Pick<UserResponse, 'userType'>) {
   if (user.userType === 'STUDENT') {
-    return '/';
+    return '/students';
   }
 
-  return user.userType === 'ADMIN' ? '/admin' : '/portal';
+  if (user.userType === 'ADMIN') {
+    return '/admin';
+  }
+
+  if (user.userType === 'MANAGER') {
+    return '/managers';
+  }
+
+  return '/faculty';
 }
 
 export function needsStudentOnboarding(user: Pick<UserResponse, 'userType' | 'studentProfile'>) {
@@ -14,7 +24,7 @@ export function needsStudentOnboarding(user: Pick<UserResponse, 'userType' | 'st
 
 export function getPostAuthRedirect(user: UserResponse, nextStep: NextStep) {
   if (nextStep === 'ONBOARDING') {
-    return '/student/onboarding';
+    return STUDENT_ONBOARDING_PATH;
   }
 
   return getUserHomePath(user);
