@@ -16,14 +16,13 @@ class FlywayMigrationTest extends AbstractPostgresIntegrationTest {
     @Test
     void createsAllUserManagementTables() {
         Integer tableCount = jdbcTemplate.queryForObject(
-            """
-            select count(*)
-            from information_schema.tables
-            where table_schema = 'public'
-              and table_name in ('users', 'students', 'faculty', 'admins', 'managers')
-            """,
-            Integer.class
-        );
+                """
+                        select count(*)
+                        from information_schema.tables
+                        where table_schema = 'public'
+                          and table_name in ('users', 'students', 'faculty', 'admins', 'managers')
+                        """,
+                Integer.class);
 
         assertThat(tableCount).isEqualTo(5);
     }
