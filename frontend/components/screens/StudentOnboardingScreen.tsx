@@ -10,6 +10,7 @@ import {
   getErrorMessage,
   getStudentOnboarding,
 } from '@/lib/api-client';
+import { getUserHomePath } from '@/lib/auth-routing';
 import type { StudentOnboardingRequest, UserResponse } from '@/lib/api-types';
 import { getUserTypeLabel } from '@/lib/user-display';
 
@@ -86,7 +87,7 @@ export function StudentOnboardingScreen({ user }: { user?: UserResponse }) {
         }
 
         if (onboardingState.onboardingCompleted) {
-          window.location.assign('/');
+          window.location.assign(getUserHomePath(resolvedUser));
           return;
         }
 
@@ -172,10 +173,13 @@ export function StudentOnboardingScreen({ user }: { user?: UserResponse }) {
         };
 
         await completeStudentOnboarding(session.access_token, payload);
-        await refreshMe();
+        const refreshedUser = await refreshMe();
+        const redirectUser = refreshedUser ?? resolvedUser;
 
         // Use a full navigation so role/onboarding guards rehydrate from the latest backend state.
-        window.location.assign('/');
+        if (redirectUser) {
+          window.location.assign(getUserHomePath(redirectUser));
+        }
       } catch (error) {
         setAlert({
           variant: 'error',

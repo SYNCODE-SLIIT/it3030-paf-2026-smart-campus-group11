@@ -193,7 +193,7 @@ export function StudentOnboardingFrame({ children }: { children: React.ReactNode
     }
 
     if (!needsStudentOnboarding(appUser)) {
-      return '/';
+      return getUserHomePath(appUser);
     }
 
     return null;

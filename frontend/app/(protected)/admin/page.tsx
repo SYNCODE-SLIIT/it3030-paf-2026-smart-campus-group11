@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
-export default function AdminHomePage() {
+export default async function AdminHomePage() {
   redirect('/admin/users');
 }
