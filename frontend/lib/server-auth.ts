@@ -127,7 +127,7 @@ export async function requireStudentOnboardingUser() {
   }
 
   if (!needsStudentOnboarding(authState.appUser)) {
-    redirect('/portal');
+    redirect(getUserHomePath(authState.appUser));
   }
 
   return authState.appUser;

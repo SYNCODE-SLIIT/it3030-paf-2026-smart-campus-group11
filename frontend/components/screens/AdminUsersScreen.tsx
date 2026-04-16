@@ -183,7 +183,15 @@ export function AdminUsersScreen({ currentUser }: { currentUser?: UserResponse }
   }
 
   if (!resolvedUser) {
-    return null;
+    return (
+      <Card>
+        <div style={{ display: 'grid', gap: 12 }}>
+          <Skeleton variant="line" height={20} width="35%" />
+          <Skeleton variant="rect" height={52} />
+          <Skeleton variant="rect" height={220} />
+        </div>
+      </Card>
+    );
   }
 
   return (

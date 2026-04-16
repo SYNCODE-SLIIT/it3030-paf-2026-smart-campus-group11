@@ -1,10 +1,13 @@
 import { StudentOnboardingFrame } from '@/components/auth/ProtectedRouteFrames';
 import { StudentOnboardingScreen } from '@/components/screens/StudentOnboardingScreen';
+import { requireStudentOnboardingUser } from '@/lib/server-auth';
 
-export default function StudentOnboardingPage() {
+export default async function StudentOnboardingPage() {
+  const appUser = await requireStudentOnboardingUser();
+
   return (
     <StudentOnboardingFrame>
-      <StudentOnboardingScreen />
+      <StudentOnboardingScreen user={appUser} />
     </StudentOnboardingFrame>
   );
 }

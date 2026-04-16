@@ -25,6 +25,10 @@ export function MarketingNavbar() {
       return baseItems;
     }
 
+    if (appUser.userType === 'STUDENT') {
+      return baseItems;
+    }
+
     return [
       ...baseItems,
       {

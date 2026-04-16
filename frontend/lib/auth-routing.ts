@@ -1,6 +1,10 @@
 import type { NextStep, UserResponse } from '@/lib/api-types';
 
 export function getUserHomePath(user: Pick<UserResponse, 'userType'>) {
+  if (user.userType === 'STUDENT') {
+    return '/';
+  }
+
   return user.userType === 'ADMIN' ? '/admin' : '/portal';
 }
 
