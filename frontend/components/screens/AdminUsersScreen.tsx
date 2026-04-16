@@ -5,7 +5,7 @@ import { Copy, RefreshCw, Search, Trash2, UserPlus, X } from 'lucide-react';
 
 import { useAuth } from '@/components/providers/AuthProvider';
 import { CreateUserPanel } from '@/components/screens/admin/CreateUserPanel';
-import { Alert, Button, Card, Chip, GlassPill, Input, Select, Skeleton, Textarea } from '@/components/ui';
+import { Alert, Button, Card, Chip, GlassPill, Input, Select, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Textarea } from '@/components/ui';
 import { deleteUser, getErrorMessage, listUsers } from '@/lib/api-client';
 import type { AccountStatus, UserResponse, UserType } from '@/lib/api-types';
 import {
@@ -197,44 +197,6 @@ export function AdminUsersScreen({ currentUser }: { currentUser?: UserResponse }
   return (
     <div style={{ display: 'grid', gap: 16 }}>
       <style>{`
-        .admin-users-layout {
-          display: grid;
-          gap: 16px;
-        }
-
-        .admin-users-table {
-          width: 100%;
-          border-collapse: collapse;
-          font-size: 13px;
-        }
-
-        .admin-users-table thead th {
-          text-align: left;
-          padding: 12px 14px;
-          font-family: var(--font-mono);
-          font-size: 8px;
-          letter-spacing: .16em;
-          text-transform: uppercase;
-          color: var(--text-muted);
-          border-bottom: 1px solid var(--border);
-          white-space: nowrap;
-        }
-
-        .admin-users-table tbody td {
-          padding: 14px;
-          border-bottom: 1px solid rgba(20,18,12,.08);
-          color: var(--text-body);
-          vertical-align: middle;
-        }
-
-        .admin-users-table tbody tr {
-          transition: background .15s ease;
-        }
-
-        .admin-users-table tbody tr:hover {
-          background: rgba(238,202,68,.06);
-        }
-
         .admin-users-dialog-overlay {
           position: fixed;
           inset: 0;
@@ -270,12 +232,6 @@ export function AdminUsersScreen({ currentUser }: { currentUser?: UserResponse }
         .admin-users-dialog-close:hover {
           background: rgba(238,202,68,.12);
           transform: translateY(-1px);
-        }
-
-        @media (max-width: 1120px) {
-          .admin-users-layout {
-            grid-template-columns: 1fr;
-          }
         }
       `}</style>
 
@@ -379,79 +335,77 @@ export function AdminUsersScreen({ currentUser }: { currentUser?: UserResponse }
           </div>
         </GlassPill>
 
-        <div className="admin-users-layout">
-          <Card style={{ padding: 0, overflow: 'hidden' }}>
-            {loadError ? (
-              <div style={{ padding: 18 }}>
-                <Alert variant="error" title="Directory unavailable">
-                  {loadError}
-                </Alert>
-              </div>
-            ) : loadingUsers ? (
-              <div style={{ display: 'grid', gap: 10, padding: 16 }}>
-                <Skeleton variant="rect" height={54} />
-                <Skeleton variant="rect" height={54} />
-                <Skeleton variant="rect" height={54} />
-              </div>
-            ) : users.length === 0 ? (
-              <div style={{ padding: 18 }}>
-                <p style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: 'var(--text-h)' }}>
-                  No users found
-                </p>
-              </div>
-            ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table className="admin-users-table">
-                  <thead>
-                    <tr>
-                      <th>Email</th>
-                      <th>Role</th>
-                      <th>Status</th>
-                      {showStudentOnboardingColumn ? <th>Onboarding</th> : null}
-                      <th>Last Login</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {users.map((user) => (
-                      <tr key={user.id}>
-                        <td>{user.email}</td>
-                        <td>
-                          <Chip color={getUserTypeChipColor(user.userType)} dot>
-                            {getUserTypeLabel(user.userType)}
-                          </Chip>
-                        </td>
-                        <td>
-                          <Chip color={getAccountStatusChipColor(user.accountStatus)} dot>
-                            {getAccountStatusLabel(user.accountStatus)}
-                          </Chip>
-                        </td>
-                        {showStudentOnboardingColumn ? (
-                          <td>{user.userType === 'STUDENT' ? (user.studentProfile?.onboardingCompleted ? 'Complete' : 'Pending') : '-'}</td>
-                        ) : null}
-                        <td>{user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString() : '-'}</td>
-                        <td>
-                          <Button
-                            variant="ghost-danger"
-                            size="xs"
-                            loading={deletingUserId === user.id}
-                            disabled={resolvedUser?.id === user.id}
-                            iconLeft={<Trash2 size={12} />}
-                            onClick={() => {
-                              void handleDeleteUser(user);
-                            }}
-                          >
-                            Delete
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Card>
-        </div>
+        <Card style={{ padding: 0, overflow: 'hidden' }}>
+          {loadError ? (
+            <div style={{ padding: 18 }}>
+              <Alert variant="error" title="Directory unavailable">
+                {loadError}
+              </Alert>
+            </div>
+          ) : loadingUsers ? (
+            <div style={{ display: 'grid', gap: 10, padding: 16 }}>
+              <Skeleton variant="rect" height={54} />
+              <Skeleton variant="rect" height={54} />
+              <Skeleton variant="rect" height={54} />
+            </div>
+          ) : users.length === 0 ? (
+            <div style={{ padding: 18 }}>
+              <p style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: 'var(--text-h)' }}>
+                No users found
+              </p>
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <Table>
+                <TableHead>
+                  <TableRow hoverable={false}>
+                    <TableHeader>Email</TableHeader>
+                    <TableHeader>Role</TableHeader>
+                    <TableHeader>Status</TableHeader>
+                    {showStudentOnboardingColumn ? <TableHeader>Onboarding</TableHeader> : null}
+                    <TableHeader>Last Login</TableHeader>
+                    <TableHeader>Actions</TableHeader>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {users.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>
+                        <Chip color={getUserTypeChipColor(user.userType)} dot>
+                          {getUserTypeLabel(user.userType)}
+                        </Chip>
+                      </TableCell>
+                      <TableCell>
+                        <Chip color={getAccountStatusChipColor(user.accountStatus)} dot>
+                          {getAccountStatusLabel(user.accountStatus)}
+                        </Chip>
+                      </TableCell>
+                      {showStudentOnboardingColumn ? (
+                        <TableCell>{user.userType === 'STUDENT' ? (user.studentProfile?.onboardingCompleted ? 'Complete' : 'Pending') : '-'}</TableCell>
+                      ) : null}
+                      <TableCell>{user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString() : '-'}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost-danger"
+                          size="xs"
+                          loading={deletingUserId === user.id}
+                          disabled={resolvedUser?.id === user.id}
+                          iconLeft={<Trash2 size={12} />}
+                          onClick={() => {
+                            void handleDeleteUser(user);
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </Card>
       </div>
 
       {isCreateDialogOpen && (

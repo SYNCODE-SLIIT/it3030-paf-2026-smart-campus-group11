@@ -6,7 +6,6 @@ import { usePathname, useRouter } from 'next/navigation';
 
 import { Sidebar, type NavSection } from '@/components/layout/Sidebar';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { GlassPill } from '@/components/ui';
 import type { UserResponse } from '@/lib/api-types';
 import { getUserDisplayName, getUserInitials, getUserTypeLabel } from '@/lib/user-display';
 
@@ -114,31 +113,6 @@ export function ProtectedShell({
           padding: '32px 24px 40px',
         }}
       >
-        <GlassPill
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 16,
-            padding: '12px 16px',
-            marginBottom: 20,
-          }}
-        >
-          <div>
-            <p
-              style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: 15,
-                fontWeight: 700,
-                color: 'var(--text-h)',
-                letterSpacing: '-0.02em',
-              }}
-            >
-              Smart Campus
-            </p>
-          </div>
-        </GlassPill>
-
         {children}
       </main>
     </div>
