@@ -208,17 +208,17 @@ export function AdminResourcesScreen() {
 
           <div style={{ overflowX: 'auto' }}>
             <Table>
-              <TableHeader>
+              <TableHead>
                 <TableRow>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Availability</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHeader>Code</TableHeader>
+                  <TableHeader>Name</TableHeader>
+                  <TableHeader>Category</TableHeader>
+                  <TableHeader>Status</TableHeader>
+                  <TableHeader>Location</TableHeader>
+                  <TableHeader>Availability</TableHeader>
+                  <TableHeader>Actions</TableHeader>
                 </TableRow>
-              </TableHeader>
+              </TableHead>
               <TableBody>
                 {loading ? (
                   <TableRow>
