@@ -256,6 +256,12 @@ export async function listUsers(accessToken: string, filters: UserFilters = {}) 
   });
 }
 
+export async function getUser(accessToken: string, userId: string) {
+  return request<UserResponse>(`/api/admin/users/${userId}`, {
+    accessToken,
+  });
+}
+
 export async function createUser(accessToken: string, payload: CreateUserRequest) {
   return request<UserResponse>('/api/admin/users', {
     method: 'POST',
@@ -400,4 +406,37 @@ export async function cancelApprovedBookingAsManager(
     accessToken,
     body: payload,
   });
+}
+
+export async function uploadStudentProfileImage(accessToken: string, file: File) {
+  const formData = new FormData();
+  formData.set('file', file);
+
+  const response = await fetch('/api/students/me/profile-image', {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: formData,
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    let details: ErrorResponse | null = null;
+
+    try {
+      details = await response.json();
+    } catch {
+      details = null;
+    }
+
+    throw new ApiError(
+      response.status,
+      details?.message ?? `Request failed with status ${response.status}.`,
+      details,
+    );
+  }
+
+  return parseResponse<UserResponse>(response);
 }
