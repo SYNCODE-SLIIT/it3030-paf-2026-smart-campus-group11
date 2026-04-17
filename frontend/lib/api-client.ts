@@ -1,10 +1,15 @@
 import {
   type AccountStatus,
+  type BookingDecisionRequest,
+  type BookingResponse,
+  type CancelBookingRequest,
+  type CreateBookingRequest,
   type CreateUserRequest,
   type ErrorResponse,
   type ManagerRole,
   type ManagerRoleUpdateRequest,
   type MessageResponse,
+  type ResourceResponse,
   type SessionSyncResponse,
   type StudentOnboardingRequest,
   type StudentOnboardingStateResponse,
@@ -300,6 +305,73 @@ export async function getStudentOnboarding(accessToken: string) {
 export async function completeStudentOnboarding(accessToken: string, payload: StudentOnboardingRequest) {
   return request<UserResponse>('/api/students/me/onboarding', {
     method: 'PUT',
+    accessToken,
+    body: payload,
+  });
+}
+
+export async function listResources(accessToken: string) {
+  return request<ResourceResponse[]>('/api/resources', {
+    accessToken,
+  });
+}
+
+export async function createBooking(accessToken: string, payload: CreateBookingRequest) {
+  return request<BookingResponse>('/api/bookings', {
+    method: 'POST',
+    accessToken,
+    body: payload,
+  });
+}
+
+export async function listMyBookings(accessToken: string) {
+  return request<BookingResponse[]>('/api/bookings', {
+    accessToken,
+  });
+}
+
+export async function getMyBooking(accessToken: string, bookingId: string) {
+  return request<BookingResponse>(`/api/bookings/${bookingId}`, {
+    accessToken,
+  });
+}
+
+export async function cancelMyBooking(accessToken: string, bookingId: string, payload?: CancelBookingRequest) {
+  return request<BookingResponse>(`/api/bookings/${bookingId}/cancel`, {
+    method: 'POST',
+    accessToken,
+    body: payload,
+  });
+}
+
+export async function listAllBookings(accessToken: string) {
+  return request<BookingResponse[]>('/api/admin/bookings', {
+    accessToken,
+  });
+}
+
+export async function approveBooking(accessToken: string, bookingId: string) {
+  return request<BookingResponse>(`/api/admin/bookings/${bookingId}/approve`, {
+    method: 'POST',
+    accessToken,
+  });
+}
+
+export async function rejectBooking(accessToken: string, bookingId: string, payload: BookingDecisionRequest) {
+  return request<BookingResponse>(`/api/admin/bookings/${bookingId}/reject`, {
+    method: 'POST',
+    accessToken,
+    body: payload,
+  });
+}
+
+export async function cancelApprovedBookingAsManager(
+  accessToken: string,
+  bookingId: string,
+  payload?: CancelBookingRequest,
+) {
+  return request<BookingResponse>(`/api/admin/bookings/${bookingId}/cancel`, {
+    method: 'POST',
     accessToken,
     body: payload,
   });

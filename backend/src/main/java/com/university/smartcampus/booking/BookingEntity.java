@@ -4,8 +4,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 import com.university.smartcampus.AppEnums.BookingStatus;
-import com.university.smartcampus.TimestampedEntity;
-import com.university.smartcampus.UserEntity;
+import com.university.smartcampus.common.entity.TimestampedEntity;
+import com.university.smartcampus.user.entity.UserEntity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

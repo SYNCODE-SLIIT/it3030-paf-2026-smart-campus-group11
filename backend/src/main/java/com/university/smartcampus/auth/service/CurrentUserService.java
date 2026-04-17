@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import com.university.smartcampus.common.enums.AppEnums.AccountStatus;
+import com.university.smartcampus.common.enums.AppEnums.ManagerRole;
 import com.university.smartcampus.common.enums.AppEnums.UserType;
 import com.university.smartcampus.common.exception.ForbiddenException;
 import com.university.smartcampus.common.exception.UnauthorizedException;
@@ -59,6 +60,24 @@ public class CurrentUserService {
             throw new ForbiddenException("Admin access is required.");
         }
         return user;
+    }
+
+    public UserEntity requireAdminOrBookingManager(Authentication authentication) {
+        UserEntity user = requireCurrentUser(authentication);
+
+        if (user.getUserType() == UserType.ADMIN) {
+            return user;
+        }
+
+        if (
+            user.getUserType() == UserType.MANAGER
+                && user.getManagerProfile() != null
+                && user.getManagerProfile().hasManagerRole(ManagerRole.BOOKING_MANAGER)
+        ) {
+            return user;
+        }
+
+        throw new ForbiddenException("Booking management access is required.");
     }
 
     public UserEntity requireStudent(Authentication authentication) {

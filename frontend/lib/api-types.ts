@@ -6,6 +6,12 @@ export type AuthDeliveryMethod = 'INVITE_EMAIL' | 'LOGIN_LINK_EMAIL';
 
 export type ManagerRole = 'CATALOG_MANAGER' | 'BOOKING_MANAGER' | 'TICKET_MANAGER';
 
+export type BookingStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+
+export type ResourceCategory = 'ROOM' | 'LAB' | 'VEHICLE' | 'EQUIPMENT' | 'OTHER';
+
+export type ResourceStatus = 'ACTIVE' | 'INACTIVE';
+
 export type StudentFaculty =
   | 'FACULTY_OF_COMPUTING'
   | 'FACULTY_OF_ENGINEERING'
@@ -70,6 +76,52 @@ export type NextStep = 'ONBOARDING' | 'DASHBOARD';
 
 export interface MessageResponse {
   message: string;
+}
+
+export interface ResourceResponse {
+  id: string;
+  code: string;
+  name: string;
+  category: ResourceCategory;
+  subcategory: string | null;
+  location: string | null;
+  capacity: number | null;
+  status: ResourceStatus;
+}
+
+export interface ResourceSummary {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface CreateBookingRequest {
+  resourceId: string;
+  startTime: string;
+  endTime: string;
+  purpose?: string;
+}
+
+export interface BookingDecisionRequest {
+  reason: string;
+}
+
+export interface CancelBookingRequest {
+  reason?: string;
+}
+
+export interface BookingResponse {
+  id: string;
+  resource: ResourceSummary;
+  requesterId: string;
+  status: BookingStatus;
+  startTime: string;
+  endTime: string;
+  purpose: string | null;
+  rejectionReason: string | null;
+  cancellationReason: string | null;
+  decidedAt: string | null;
+  cancelledAt: string | null;
 }
 
 export interface ErrorResponse {

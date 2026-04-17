@@ -5,13 +5,14 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.university.smartcampus.AppEnums.BookingStatus;
 import com.university.smartcampus.booking.BookingDtos.BookingDecisionRequest;
 import com.university.smartcampus.booking.BookingDtos.CancelBookingRequest;
 import com.university.smartcampus.booking.BookingDtos.BookingResponse;
-import com.university.smartcampus.BadRequestException;
-import com.university.smartcampus.UserEntity;
+import com.university.smartcampus.common.exception.BadRequestException;
+import com.university.smartcampus.user.entity.UserEntity;
 
 @Service
 public class BookingDecisionService {
@@ -30,6 +31,7 @@ public class BookingDecisionService {
         this.bookingService = bookingService;
     }
 
+    @Transactional
     public BookingResponse approveBooking(UUID bookingId, UserEntity approver) {
         Objects.requireNonNull(approver, "Approver is required.");
         BookingEntity booking = bookingService.requireBooking(bookingId);
@@ -48,6 +50,7 @@ public class BookingDecisionService {
         return bookingService.toResponse(saved);
     }
 
+    @Transactional
     public BookingResponse rejectBooking(UUID bookingId, UserEntity approver, BookingDecisionRequest request) {
         Objects.requireNonNull(approver, "Approver is required.");
         BookingEntity booking = bookingService.requireBooking(bookingId);
@@ -64,6 +67,7 @@ public class BookingDecisionService {
         return bookingService.toResponse(saved);
     }
 
+    @Transactional
     public BookingResponse cancelApprovedBooking(UUID bookingId, CancelBookingRequest request) {
         BookingEntity booking = bookingService.requireBooking(bookingId);
         if (booking.getStatus() != BookingStatus.APPROVED) {

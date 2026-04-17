@@ -8,6 +8,7 @@ import com.university.smartcampus.AppEnums.BookingStatus;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.EntityGraph;
 
 public interface BookingRepository extends JpaRepository<BookingEntity, UUID>, JpaSpecificationExecutor<BookingEntity> {
 
@@ -26,8 +27,14 @@ public interface BookingRepository extends JpaRepository<BookingEntity, UUID>, J
         UUID id
     );
 
+    @EntityGraph(attributePaths = { "resource", "requester" })
     List<BookingEntity> findAllByRequesterIdOrderByStartTimeDesc(UUID requesterId);
 
+    @EntityGraph(attributePaths = { "resource", "requester" })
     List<BookingEntity> findAllByOrderByStartTimeDesc();
+
+    @Override
+    @EntityGraph(attributePaths = { "resource", "requester" })
+    java.util.Optional<BookingEntity> findById(UUID id);
 
 }

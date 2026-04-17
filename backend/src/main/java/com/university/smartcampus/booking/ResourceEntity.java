@@ -4,7 +4,7 @@ import java.util.UUID;
 
 import com.university.smartcampus.AppEnums.ResourceCategory;
 import com.university.smartcampus.AppEnums.ResourceStatus;
-import com.university.smartcampus.TimestampedEntity;
+import com.university.smartcampus.common.entity.TimestampedEntity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

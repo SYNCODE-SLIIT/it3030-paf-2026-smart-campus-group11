@@ -42,13 +42,13 @@ public class AdminBookingController {
 
     @GetMapping
     public List<BookingResponse> listBookings(Authentication authentication) {
-        currentUserService.requireAdmin(authentication);
+        currentUserService.requireAdminOrBookingManager(authentication);
         return bookingService.listAllBookings();
     }
 
     @PostMapping("/{id}/approve")
     public BookingResponse approveBooking(@PathVariable UUID id, Authentication authentication) {
-        UserEntity approver = currentUserService.requireAdmin(authentication);
+        UserEntity approver = currentUserService.requireAdminOrBookingManager(authentication);
         return bookingDecisionService.approveBooking(id, approver);
     }
 
@@ -58,7 +58,7 @@ public class AdminBookingController {
         @Valid @RequestBody BookingDecisionRequest request,
         Authentication authentication
     ) {
-        UserEntity approver = currentUserService.requireAdmin(authentication);
+        UserEntity approver = currentUserService.requireAdminOrBookingManager(authentication);
         return bookingDecisionService.rejectBooking(id, approver, request);
     }
 
@@ -68,7 +68,7 @@ public class AdminBookingController {
         @RequestBody(required = false) CancelBookingRequest request,
         Authentication authentication
     ) {
-        currentUserService.requireAdmin(authentication);
+        currentUserService.requireAdminOrBookingManager(authentication);
         return bookingDecisionService.cancelApprovedBooking(id, request);
     }
 }

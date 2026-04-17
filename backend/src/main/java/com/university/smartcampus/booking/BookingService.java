@@ -7,12 +7,13 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.university.smartcampus.AppEnums.BookingStatus;
-import com.university.smartcampus.BadRequestException;
-import com.university.smartcampus.ForbiddenException;
-import com.university.smartcampus.NotFoundException;
-import com.university.smartcampus.UserEntity;
+import com.university.smartcampus.common.exception.BadRequestException;
+import com.university.smartcampus.common.exception.ForbiddenException;
+import com.university.smartcampus.common.exception.NotFoundException;
+import com.university.smartcampus.user.entity.UserEntity;
 
 @Service
 public class BookingService {
@@ -60,6 +61,7 @@ public class BookingService {
     }
 
 
+    @Transactional(readOnly = true)
     public List<BookingDtos.BookingResponse> listBookingsForUser(UserEntity requester) {
         Objects.requireNonNull(requester, "Requester is required.");
         return bookingRepository.findAllByRequesterIdOrderByStartTimeDesc(requester.getId()).stream()
@@ -67,6 +69,7 @@ public class BookingService {
             .toList();
     }
 
+    @Transactional(readOnly = true)
     public BookingDtos.BookingResponse getBookingForUser(UserEntity requester, UUID bookingId) {
         Objects.requireNonNull(requester, "Requester is required.");
         BookingEntity booking = requireBooking(bookingId);
@@ -76,17 +79,20 @@ public class BookingService {
         return toResponse(booking);
     }
 
+    @Transactional(readOnly = true)
     public List<BookingDtos.BookingResponse> listAllBookings() {
         return bookingRepository.findAllByOrderByStartTimeDesc().stream()
             .map(this::toResponse)
             .toList();
     }
 
+    @Transactional(readOnly = true)
     public BookingDtos.BookingResponse getBooking(UUID bookingId) {
         return toResponse(requireBooking(bookingId));
     }
 
 
+    @Transactional
     public BookingDtos.BookingResponse cancelBooking(
         UserEntity requester,
         UUID bookingId,
@@ -115,6 +121,7 @@ public class BookingService {
         return toResponse(saved);
     }
 
+    @Transactional(readOnly = true)
     BookingEntity requireBooking(UUID bookingId) {
         Objects.requireNonNull(bookingId, "Booking id is required.");
         return bookingRepository.findById(bookingId)
