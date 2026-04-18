@@ -153,6 +153,49 @@ public class SmartCampusProperties {
         }
     }
 
+    public static class Storage {
+        private final TicketAttachments ticketAttachments = new TicketAttachments();
+        private final ProfileImages profileImages = new ProfileImages();
+
+        public TicketAttachments getTicketAttachments() {
+            return ticketAttachments;
+        }
+
+        public ProfileImages getProfileImages() {
+            return profileImages;
+        }
+    }
+
+    public static class TicketAttachments {
+        private String bucket = "ticket-attachments";
+        private boolean publicBucket = true;
+        private long fileSizeLimitBytes = 10 * 1024 * 1024;
+
+        public String getBucket() {
+            return bucket;
+        }
+
+        public void setBucket(String bucket) {
+            this.bucket = bucket;
+        }
+
+        public boolean isPublicBucket() {
+            return publicBucket;
+        }
+
+        public void setPublicBucket(boolean publicBucket) {
+            this.publicBucket = publicBucket;
+        }
+
+        public long getFileSizeLimitBytes() {
+            return fileSizeLimitBytes;
+        }
+
+        public void setFileSizeLimitBytes(long fileSizeLimitBytes) {
+            this.fileSizeLimitBytes = fileSizeLimitBytes;
+        }
+    }
+
     public static class Admin {
         private String email;
         private String fullName;
@@ -197,14 +240,6 @@ public class SmartCampusProperties {
 
         private boolean hasText(String value) {
             return value != null && !value.isBlank();
-        }
-    }
-
-    public static class Storage {
-        private final ProfileImages profileImages = new ProfileImages();
-
-        public ProfileImages getProfileImages() {
-            return profileImages;
         }
     }
 

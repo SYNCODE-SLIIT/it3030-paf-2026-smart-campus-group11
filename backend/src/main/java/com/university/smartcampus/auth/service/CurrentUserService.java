@@ -104,6 +104,16 @@ public class CurrentUserService {
         return user;
     }
 
+    public UserEntity requireTicketManager(Authentication authentication) {
+        UserEntity user = requireCurrentUser(authentication);
+        if (user.getUserType() != UserType.MANAGER
+                || user.getManagerProfile() == null
+                || user.getManagerProfile().getManagerRole() != ManagerRole.TICKET_MANAGER) {
+            throw new ForbiddenException("Ticket manager access is required.");
+        }
+        return user;
+    }
+
     public String normalizedEmailFromJwt(Jwt jwt) {
         String email = jwt.getClaimAsString("email");
         if (!StringUtils.hasText(email)) {

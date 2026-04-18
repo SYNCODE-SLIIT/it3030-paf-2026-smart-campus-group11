@@ -108,4 +108,30 @@ public final class AppEnums {
         ADMIN,
         MANAGER
     }
+
+    public enum TicketCategory {
+        ELECTRICAL,
+        NETWORK,
+        EQUIPMENT,
+        FURNITURE,
+        CLEANLINESS,
+        FACILITY_DAMAGE,
+        ACCESS_SECURITY,
+        OTHER
+    }
+
+    public enum TicketPriority {
+        LOW,
+        MEDIUM,
+        HIGH,
+        URGENT
+    }
+
+    public enum TicketStatus {
+        OPEN,
+        IN_PROGRESS,
+        RESOLVED,
+        CLOSED,
+        REJECTED
+    }
 }
