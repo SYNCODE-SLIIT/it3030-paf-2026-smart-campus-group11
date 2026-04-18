@@ -237,4 +237,33 @@ public class SmartCampusProperties {
             return value != null && !value.isBlank();
         }
     }
+
+    public static class Storage {
+        private final ProfileImages profileImages = new ProfileImages();
+
+        public ProfileImages getProfileImages() {
+            return profileImages;
+        }
+    }
+
+    public static class ProfileImages {
+        private String bucket = "profile-images";
+        private long maxSizeBytes = 2 * 1024 * 1024;
+
+        public String getBucket() {
+            return bucket;
+        }
+
+        public void setBucket(String bucket) {
+            this.bucket = bucket;
+        }
+
+        public long getMaxSizeBytes() {
+            return maxSizeBytes;
+        }
+
+        public void setMaxSizeBytes(long maxSizeBytes) {
+            this.maxSizeBytes = maxSizeBytes;
+        }
+    }
 }

@@ -1,13 +1,20 @@
 import {
   type AccountStatus,
+  type BookingDecisionRequest,
+  type BookingResponse,
+  type CancelBookingRequest,
+  type CreateBookingRequest,
+  type CreateResourceRequest,
   type CreateUserRequest,
   type ErrorResponse,
   type ManagerRole,
   type ManagerRoleUpdateRequest,
   type MessageResponse,
+  type ResourceResponse,
   type SessionSyncResponse,
   type StudentOnboardingRequest,
   type StudentOnboardingStateResponse,
+  type UpdateResourceRequest,
   type UpdateUserRequest,
   type UserResponse,
   type UserType,
@@ -249,6 +256,12 @@ export async function listUsers(accessToken: string, filters: UserFilters = {}) 
   });
 }
 
+export async function getUser(accessToken: string, userId: string) {
+  return request<UserResponse>(`/api/admin/users/${userId}`, {
+    accessToken,
+  });
+}
+
 export async function createUser(accessToken: string, payload: CreateUserRequest) {
   return request<UserResponse>('/api/admin/users', {
     method: 'POST',
@@ -303,4 +316,141 @@ export async function completeStudentOnboarding(accessToken: string, payload: St
     accessToken,
     body: payload,
   });
+}
+
+export async function listResources(accessToken: string) {
+  return request<ResourceResponse[]>('/api/resources', {
+    accessToken,
+  });
+}
+
+export async function createResource(accessToken: string, payload: CreateResourceRequest) {
+  return request<ResourceResponse>('/api/resources', {
+    method: 'POST',
+    accessToken,
+    body: payload,
+  });
+}
+
+export async function updateResource(accessToken: string, resourceId: string, payload: UpdateResourceRequest) {
+  return request<ResourceResponse>(`/api/resources/${resourceId}`, {
+    method: 'PATCH',
+    accessToken,
+    body: payload,
+  });
+}
+
+export async function deleteResource(accessToken: string, resourceId: string) {
+  return request<MessageResponse>(`/api/resources/${resourceId}`, {
+    method: 'DELETE',
+    accessToken,
+  });
+}
+
+export async function createBooking(accessToken: string, payload: CreateBookingRequest) {
+  return request<BookingResponse>('/api/bookings', {
+    method: 'POST',
+    accessToken,
+    body: payload,
+  });
+}
+
+export async function listMyBookings(accessToken: string) {
+  return request<BookingResponse[]>('/api/bookings', {
+    accessToken,
+  });
+}
+
+export async function getMyBooking(accessToken: string, bookingId: string) {
+  return request<BookingResponse>(`/api/bookings/${bookingId}`, {
+    accessToken,
+  });
+}
+
+export async function cancelMyBooking(accessToken: string, bookingId: string, payload?: CancelBookingRequest) {
+  return request<BookingResponse>(`/api/bookings/${bookingId}/cancel`, {
+    method: 'POST',
+    accessToken,
+    body: payload,
+  });
+}
+
+export async function listAllBookings(accessToken: string) {
+  return request<BookingResponse[]>('/api/admin/bookings', {
+    accessToken,
+  });
+}
+
+export async function approveBooking(accessToken: string, bookingId: string) {
+  return request<BookingResponse>(`/api/admin/bookings/${bookingId}/approve`, {
+    method: 'POST',
+    accessToken,
+  });
+}
+
+export async function rejectBooking(accessToken: string, bookingId: string, payload: BookingDecisionRequest) {
+  return request<BookingResponse>(`/api/admin/bookings/${bookingId}/reject`, {
+    method: 'POST',
+    accessToken,
+    body: payload,
+  });
+}
+
+export async function cancelApprovedBookingAsManager(
+  accessToken: string,
+  bookingId: string,
+  payload?: CancelBookingRequest,
+) {
+  return request<BookingResponse>(`/api/admin/bookings/${bookingId}/cancel`, {
+    method: 'POST',
+    accessToken,
+    body: payload,
+  });
+}
+
+export async function uploadStudentProfileImage(accessToken: string, file: File) {
+  const path = '/api/students/me/profile-image';
+  const formData = new FormData();
+  formData.set('file', file);
+
+  let response: Response;
+
+  try {
+    response = await fetch(`${resolveApiBaseUrl()}${path}`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: formData,
+      cache: 'no-store',
+    });
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new ApiError(
+        0,
+        'Cannot reach the backend API. Make sure the backend service is running and reachable at NEXT_PUBLIC_API_URL.',
+      );
+    }
+
+    throw error;
+  }
+
+  if (!response.ok) {
+    let details: ErrorResponse | null = null;
+
+    try {
+      details = await response.json();
+    } catch {
+      details = null;
+    }
+
+    throw new ApiError(
+      response.status,
+      details?.message ?? `Request failed with status ${response.status}.`,
+      details,
+    );
+  }
+
+  return parseResponse<UserResponse>(response);
 }

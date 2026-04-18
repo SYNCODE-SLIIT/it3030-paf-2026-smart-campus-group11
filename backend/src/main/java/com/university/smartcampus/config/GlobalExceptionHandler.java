@@ -15,6 +15,7 @@ import org.springframework.web.multipart.support.MissingServletRequestPartExcept
 
 import com.university.smartcampus.common.dto.ApiDtos.ErrorResponse;
 import com.university.smartcampus.common.exception.BadRequestException;
+import com.university.smartcampus.common.exception.ConflictException;
 import com.university.smartcampus.common.exception.ExternalServiceException;
 import com.university.smartcampus.common.exception.ForbiddenException;
 import com.university.smartcampus.common.exception.NotFoundException;

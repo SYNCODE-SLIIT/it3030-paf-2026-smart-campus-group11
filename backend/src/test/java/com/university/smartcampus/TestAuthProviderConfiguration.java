@@ -8,6 +8,7 @@ import java.util.UUID;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.university.smartcampus.auth.identity.AuthIdentityClient;
 import com.university.smartcampus.auth.provider.AuthProviderClient;
@@ -43,10 +44,9 @@ public class TestAuthProviderConfiguration {
         @Override
         public DeliveryResult sendInviteLink(String email) {
             DeliveryResult result = new DeliveryResult(
-                AuthDeliveryMethod.INVITE_EMAIL,
-                "invite-" + UUID.randomUUID(),
-                "http://localhost/invite"
-            );
+                    AuthDeliveryMethod.INVITE_EMAIL,
+                    "invite-" + UUID.randomUUID(),
+                    "http://localhost/invite");
             deliveries.add(result);
             return result;
         }
@@ -54,10 +54,9 @@ public class TestAuthProviderConfiguration {
         @Override
         public DeliveryResult sendMagicLink(String email) {
             DeliveryResult result = new DeliveryResult(
-                AuthDeliveryMethod.LOGIN_LINK_EMAIL,
-                "magic-" + UUID.randomUUID(),
-                "http://localhost/magic"
-            );
+                    AuthDeliveryMethod.LOGIN_LINK_EMAIL,
+                    "magic-" + UUID.randomUUID(),
+                    "http://localhost/magic");
             deliveries.add(result);
             return result;
         }
