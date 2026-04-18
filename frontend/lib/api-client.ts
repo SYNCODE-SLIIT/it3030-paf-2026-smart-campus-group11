@@ -1,10 +1,12 @@
 import {
   type AccountStatus,
+  type AddCommentRequest,
   type BookingDecisionRequest,
   type BookingResponse,
   type CancelBookingRequest,
   type CreateBookingRequest,
   type CreateResourceRequest,
+  type CreateTicketRequest,
   type CreateUserRequest,
   type ErrorResponse,
   type ManagerRole,
@@ -14,7 +16,16 @@ import {
   type SessionSyncResponse,
   type StudentOnboardingRequest,
   type StudentOnboardingStateResponse,
+  type TicketAttachmentResponse,
+  type TicketCategory,
+  type TicketCommentResponse,
+  type TicketPriority,
+  type TicketResponse,
+  type TicketStatus,
+  type TicketStatusHistoryResponse,
+  type TicketSummaryResponse,
   type UpdateResourceRequest,
+  type UpdateTicketRequest,
   type UpdateUserRequest,
   type UserResponse,
   type UserType,
@@ -453,4 +464,105 @@ export async function uploadStudentProfileImage(accessToken: string, file: File)
   }
 
   return parseResponse<UserResponse>(response);
+}
+
+// Ticket Management
+
+export async function listMyTickets(
+  accessToken: string,
+  params?: { status?: TicketStatus; category?: TicketCategory; priority?: TicketPriority },
+): Promise<TicketSummaryResponse[]> {
+  const qs = new URLSearchParams();
+  if (params?.status) qs.set('status', params.status);
+  if (params?.category) qs.set('category', params.category);
+  if (params?.priority) qs.set('priority', params.priority);
+  const query = qs.toString();
+  return request<TicketSummaryResponse[]>(`/api/tickets${query ? `?${query}` : ''}`, { accessToken });
+}
+
+export async function createTicket(accessToken: string, payload: CreateTicketRequest): Promise<TicketResponse> {
+  return request<TicketResponse>('/api/tickets', { method: 'POST', accessToken, body: payload });
+}
+
+export async function getTicket(accessToken: string, ticketId: string): Promise<TicketResponse> {
+  return request<TicketResponse>(`/api/tickets/${ticketId}`, { accessToken });
+}
+
+export async function updateTicket(
+  accessToken: string,
+  ticketId: string,
+  payload: UpdateTicketRequest,
+): Promise<TicketResponse> {
+  return request<TicketResponse>(`/api/tickets/${ticketId}`, { method: 'PATCH', accessToken, body: payload });
+}
+
+export async function listTicketComments(
+  accessToken: string,
+  ticketId: string,
+): Promise<TicketCommentResponse[]> {
+  return request<TicketCommentResponse[]>(`/api/tickets/${ticketId}/comments`, { accessToken });
+}
+
+export async function addTicketComment(
+  accessToken: string,
+  ticketId: string,
+  payload: AddCommentRequest,
+): Promise<TicketCommentResponse> {
+  return request<TicketCommentResponse>(`/api/tickets/${ticketId}/comments`, { method: 'POST', accessToken, body: payload });
+}
+
+export async function listTicketAttachments(
+  accessToken: string,
+  ticketId: string,
+): Promise<TicketAttachmentResponse[]> {
+  return request<TicketAttachmentResponse[]>(`/api/tickets/${ticketId}/attachments`, { accessToken });
+}
+
+export async function uploadTicketAttachment(
+  accessToken: string,
+  ticketId: string,
+  file: File,
+): Promise<TicketAttachmentResponse> {
+  const path = `/api/tickets/${ticketId}/attachments`;
+  const formData = new FormData();
+  formData.set('file', file);
+
+  let response: Response;
+
+  try {
+    response = await fetch(`${resolveApiBaseUrl()}${path}`, {
+      method: 'POST',
+      headers: { Accept: 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: formData,
+      cache: 'no-store',
+    });
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new ApiError(0, 'Cannot reach the backend API. Make sure the backend service is running and reachable at NEXT_PUBLIC_API_URL.');
+    }
+    throw error;
+  }
+
+  if (!response.ok) {
+    let details: ErrorResponse | null = null;
+    try { details = await response.json(); } catch { details = null; }
+    throw new ApiError(response.status, details?.message ?? `Upload failed with status ${response.status}.`, details);
+  }
+
+  return response.json() as Promise<TicketAttachmentResponse>;
+}
+
+export async function deleteTicketAttachment(
+  accessToken: string,
+  ticketId: string,
+  attachmentId: string,
+): Promise<void> {
+  return request<void>(`/api/tickets/${ticketId}/attachments/${attachmentId}`, { method: 'DELETE', accessToken });
+}
+
+export async function getTicketHistory(
+  accessToken: string,
+  ticketId: string,
+): Promise<TicketStatusHistoryResponse[]> {
+  return request<TicketStatusHistoryResponse[]>(`/api/tickets/${ticketId}/history`, { accessToken });
 }

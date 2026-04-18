@@ -326,3 +326,77 @@ export interface StudentOnboardingRequest {
   emailNotificationsEnabled?: boolean;
   smsNotificationsEnabled?: boolean;
 }
+
+// Ticket management
+export type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED' | 'REJECTED';
+export type TicketCategory = 'ELECTRICAL' | 'NETWORK' | 'EQUIPMENT' | 'FURNITURE' | 'CLEANLINESS' | 'FACILITY_DAMAGE' | 'ACCESS_SECURITY' | 'OTHER';
+export type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+
+export interface TicketSummaryResponse {
+  id: string;
+  ticketCode: string;
+  title: string;
+  category: TicketCategory;
+  priority: TicketPriority;
+  status: TicketStatus;
+  reportedByEmail: string;
+  createdAt: string;
+}
+
+export interface TicketResponse extends TicketSummaryResponse {
+  description: string;
+  assignedToEmail: string | null;
+  resolutionNotes: string | null;
+  rejectionReason: string | null;
+  contactNote: string | null;
+  resolvedAt: string | null;
+  closedAt: string | null;
+  updatedAt: string;
+}
+
+export interface CreateTicketRequest {
+  title: string;
+  description: string;
+  category: TicketCategory;
+  priority: TicketPriority;
+  contactNote?: string;
+}
+
+export interface UpdateTicketRequest {
+  priority?: TicketPriority;
+  contactNote?: string;
+}
+
+export interface TicketCommentResponse {
+  id: string;
+  ticketId: string;
+  userId: string;
+  userEmail: string;
+  commentText: string;
+  isEdited: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AddCommentRequest {
+  commentText: string;
+}
+
+export interface TicketAttachmentResponse {
+  id: string;
+  ticketId: string;
+  fileName: string;
+  fileUrl: string;
+  fileType: string;
+  uploadedAt: string;
+}
+
+export interface TicketStatusHistoryResponse {
+  id: string;
+  ticketId: string;
+  oldStatus: TicketStatus | null;
+  newStatus: TicketStatus;
+  changedByEmail: string;
+  note: string | null;
+  changedAt: string;
+}

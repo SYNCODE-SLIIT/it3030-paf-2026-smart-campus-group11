@@ -189,6 +189,12 @@ function getDefaultSections(workspace: Exclude<WorkspaceKind, 'auto'>): NavSecti
               allowedUserTypes: ['STUDENT'],
             },
             {
+              label: 'Tickets',
+              icon: MessageSquare,
+              href: '/students/tickets',
+              allowedUserTypes: ['STUDENT'],
+            },
+            {
               label: 'Account Security',
               icon: KeyRound,
               href: '/account/security',
