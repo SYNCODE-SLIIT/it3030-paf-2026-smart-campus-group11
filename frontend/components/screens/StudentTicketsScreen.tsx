@@ -176,7 +176,7 @@ export function StudentTicketsScreen() {
             <TicketCard
               key={ticket.id}
               ticket={ticket}
-              onView={() => { router.push(`/students/tickets/${ticket.id}`); }}
+              onView={() => { router.push(`/students/tickets/${ticket.ticketCode}`); }}
             />
           ))}
         </div>

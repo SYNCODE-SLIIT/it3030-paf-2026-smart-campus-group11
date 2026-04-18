@@ -124,7 +124,7 @@ export function ManagerTicketsScreen() {
               key={ticket.id}
               ticket={ticket}
               showReporter
-              onView={() => { router.push(`/managers/tickets/${ticket.id}`); }}
+              onView={() => { router.push(`/managers/tickets/${ticket.ticketCode}`); }}
             />
           ))}
         </div>

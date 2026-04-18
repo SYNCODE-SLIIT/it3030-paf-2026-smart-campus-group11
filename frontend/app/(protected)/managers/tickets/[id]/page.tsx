@@ -4,5 +4,5 @@ import { requireManagerRole } from '@/lib/server-auth';
 export default async function ManagerTicketDetailPage({ params }: { params: Promise<{ id: string }> }) {
   await requireManagerRole(['TICKET_MANAGER']);
   const { id } = await params;
-  return <ManagerTicketDetailScreen ticketId={id} />;
+  return <ManagerTicketDetailScreen ticketRef={id} />;
 }

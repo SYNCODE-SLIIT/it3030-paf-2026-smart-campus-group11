@@ -4,7 +4,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 
 import { useAuth } from '@/components/providers/AuthProvider';
-import { Alert, Button, Card, Tabs } from '@/components/ui';
+import { Alert, Card, Tabs } from '@/components/ui';
 import { TicketCard } from '@/components/tickets';
 import { getErrorMessage, listMyTickets } from '@/lib/api-client';
 import type { TicketStatus, TicketSummaryResponse } from '@/lib/api-types';
@@ -195,7 +195,7 @@ export function AdminTicketsScreen() {
               key={ticket.id}
               ticket={ticket}
               showReporter
-              onView={() => { router.push(`/admin/tickets/${ticket.id}`); }}
+              onView={() => { router.push(`/admin/tickets/${ticket.ticketCode}`); }}
             />
           ))}
         </div>

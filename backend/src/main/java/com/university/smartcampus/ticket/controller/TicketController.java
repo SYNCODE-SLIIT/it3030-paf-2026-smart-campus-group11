@@ -71,96 +71,96 @@ public class TicketController {
         return ticketService.listTickets(user, status, category, priority);
     }
 
-    @GetMapping("/{id}")
-    public TicketResponse getTicket(@PathVariable UUID id, Authentication authentication) {
+    @GetMapping("/{ticketRef}")
+    public TicketResponse getTicket(@PathVariable String ticketRef, Authentication authentication) {
         UserEntity user = currentUserService.requireCurrentUser(authentication);
-        return ticketService.getTicket(user, id);
+        return ticketService.getTicket(user, ticketRef);
     }
 
-    @PatchMapping("/{id}")
+    @PatchMapping("/{ticketRef}")
     public TicketResponse updateTicket(
-            @PathVariable UUID id,
+            @PathVariable String ticketRef,
             @Valid @RequestBody UpdateTicketRequest request,
             Authentication authentication) {
         UserEntity user = currentUserService.requireCurrentUser(authentication);
-        return ticketService.updateTicket(user, id, request);
+        return ticketService.updateTicket(user, ticketRef, request);
     }
 
-    @PutMapping("/{id}/status")
+    @PutMapping("/{ticketRef}/status")
     public TicketResponse updateStatus(
-            @PathVariable UUID id,
+            @PathVariable String ticketRef,
             @Valid @RequestBody TicketStatusUpdateRequest request,
             Authentication authentication) {
         UserEntity user = currentUserService.requireCurrentUser(authentication);
-        return ticketService.updateStatus(user, id, request);
+        return ticketService.updateStatus(user, ticketRef, request);
     }
 
-    @PutMapping("/{id}/assign")
+    @PutMapping("/{ticketRef}/assign")
     public TicketResponse assignTicket(
-            @PathVariable UUID id,
+            @PathVariable String ticketRef,
             @Valid @RequestBody AssignTicketRequest request,
             Authentication authentication) {
         UserEntity user = currentUserService.requireCurrentUser(authentication);
-        return ticketService.assignTicket(user, id, request.assignedTo());
+        return ticketService.assignTicket(user, ticketRef, request.assignedTo());
     }
 
-    @GetMapping("/{id}/comments")
-    public List<TicketCommentResponse> listComments(@PathVariable UUID id, Authentication authentication) {
+    @GetMapping("/{ticketRef}/comments")
+    public List<TicketCommentResponse> listComments(@PathVariable String ticketRef, Authentication authentication) {
         UserEntity user = currentUserService.requireCurrentUser(authentication);
-        return ticketService.listComments(user, id);
+        return ticketService.listComments(user, ticketRef);
     }
 
-    @PostMapping("/{id}/comments")
+    @PostMapping("/{ticketRef}/comments")
     @ResponseStatus(HttpStatus.CREATED)
     public TicketCommentResponse addComment(
-            @PathVariable UUID id,
+            @PathVariable String ticketRef,
             @Valid @RequestBody AddCommentRequest request,
             Authentication authentication) {
         UserEntity user = currentUserService.requireCurrentUser(authentication);
-        return ticketService.addComment(user, id, request);
+        return ticketService.addComment(user, ticketRef, request);
     }
 
-    @GetMapping("/{id}/attachments")
-    public List<TicketAttachmentResponse> listAttachments(@PathVariable UUID id, Authentication authentication) {
+    @GetMapping("/{ticketRef}/attachments")
+    public List<TicketAttachmentResponse> listAttachments(@PathVariable String ticketRef, Authentication authentication) {
         UserEntity user = currentUserService.requireCurrentUser(authentication);
-        return ticketService.listAttachments(user, id);
+        return ticketService.listAttachments(user, ticketRef);
     }
 
-    @PostMapping(value = "/{id}/attachments", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PostMapping(value = "/{ticketRef}/attachments", consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public TicketAttachmentResponse addAttachment(
-            @PathVariable UUID id,
+            @PathVariable String ticketRef,
             @Valid @RequestBody AddTicketAttachmentRequest request,
             Authentication authentication) {
         UserEntity user = currentUserService.requireCurrentUser(authentication);
-        return ticketService.addAttachment(user, id, request);
+        return ticketService.addAttachment(user, ticketRef, request);
     }
 
-    @PostMapping(value = "/{id}/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/{ticketRef}/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public TicketAttachmentResponse uploadAttachment(
-            @PathVariable UUID id,
+            @PathVariable String ticketRef,
             @RequestPart("file") MultipartFile file,
             Authentication authentication) {
         UserEntity user = currentUserService.requireCurrentUser(authentication);
-        return ticketService.uploadAttachment(user, id, file);
+        return ticketService.uploadAttachment(user, ticketRef, file);
     }
 
-    @DeleteMapping("/{id}/attachments/{attachmentId}")
+    @DeleteMapping("/{ticketRef}/attachments/{attachmentId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteAttachment(
-            @PathVariable UUID id,
+            @PathVariable String ticketRef,
             @PathVariable UUID attachmentId,
             Authentication authentication) {
         UserEntity user = currentUserService.requireCurrentUser(authentication);
-        ticketService.deleteAttachment(user, id, attachmentId);
+        ticketService.deleteAttachment(user, ticketRef, attachmentId);
     }
 
-    @GetMapping("/{id}/history")
+    @GetMapping("/{ticketRef}/history")
     public List<TicketStatusHistoryResponse> getStatusHistory(
-            @PathVariable UUID id,
+            @PathVariable String ticketRef,
             Authentication authentication) {
         UserEntity user = currentUserService.requireCurrentUser(authentication);
-        return ticketService.getStatusHistory(user, id);
+        return ticketService.getStatusHistory(user, ticketRef);
     }
 }

@@ -77,7 +77,7 @@ function getManagerDisplayName(user: UserResponse): string {
 }
 
 
-export function AdminTicketDetailScreen({ ticketId }: { ticketId: string }) {
+export function AdminTicketDetailScreen({ ticketRef }: { ticketRef: string }) {
   const { session, appUser } = useAuth();
   const router = useRouter();
   const accessToken = session?.access_token ?? null;
@@ -114,10 +114,10 @@ export function AdminTicketDetailScreen({ ticketId }: { ticketId: string }) {
     setLoadError(null);
     try {
       const [ticketData, commentsData, attachmentsData, historyData, managersData] = await Promise.all([
-        getTicket(accessToken, ticketId),
-        listTicketComments(accessToken, ticketId),
-        listTicketAttachments(accessToken, ticketId),
-        getTicketHistory(accessToken, ticketId),
+        getTicket(accessToken, ticketRef),
+        listTicketComments(accessToken, ticketRef),
+        listTicketAttachments(accessToken, ticketRef),
+        getTicketHistory(accessToken, ticketRef),
         listUsers(accessToken, { userType: 'MANAGER', managerRole: 'TICKET_MANAGER' }),
       ]);
       setTicket(ticketData);
@@ -133,7 +133,7 @@ export function AdminTicketDetailScreen({ ticketId }: { ticketId: string }) {
     } finally {
       setLoading(false);
     }
-  }, [accessToken, ticketId]);
+  }, [accessToken, ticketRef]);
 
   React.useEffect(() => { void load(); }, [load]);
 
@@ -141,7 +141,7 @@ export function AdminTicketDetailScreen({ ticketId }: { ticketId: string }) {
     if (!accessToken || !selectedAssignee) return;
     setAssigning(true);
     try {
-      const updated = await assignTicket(accessToken, ticketId, { assignedTo: selectedAssignee });
+      const updated = await assignTicket(accessToken, ticketRef, { assignedTo: selectedAssignee });
       setTicket(updated);
       setNotice({ variant: 'success', title: 'Assigned', message: 'Ticket assigned successfully.' });
     } catch (error) {
@@ -156,7 +156,7 @@ export function AdminTicketDetailScreen({ ticketId }: { ticketId: string }) {
     setSelectedAssignee(appUser.id);
     setAssigning(true);
     try {
-      const updated = await assignTicket(accessToken, ticketId, { assignedTo: appUser.id });
+      const updated = await assignTicket(accessToken, ticketRef, { assignedTo: appUser.id });
       setTicket(updated);
       setNotice({ variant: 'success', title: 'Assigned', message: 'Ticket assigned to you.' });
     } catch (error) {
@@ -170,14 +170,14 @@ export function AdminTicketDetailScreen({ ticketId }: { ticketId: string }) {
     if (!accessToken) return;
     setStatusSubmitting(true);
     try {
-      const updated = await updateTicketStatus(accessToken, ticketId, {
+      const updated = await updateTicketStatus(accessToken, ticketRef, {
         newStatus,
         note: statusNote.trim() || undefined,
         resolutionNotes: resolutionNotes.trim() || undefined,
         rejectionReason: rejectionReason.trim() || undefined,
       });
       setTicket(updated);
-      const fresh = await getTicketHistory(accessToken, ticketId);
+      const fresh = await getTicketHistory(accessToken, ticketRef);
       setHistory(fresh);
       setStatusNote('');
       setNotice({ variant: 'success', title: 'Status updated', message: `Ticket is now ${newStatus.replace('_', ' ').toLowerCase()}.` });
@@ -193,7 +193,7 @@ export function AdminTicketDetailScreen({ ticketId }: { ticketId: string }) {
     if (!accessToken || !commentText.trim()) return;
     setCommentSubmitting(true);
     try {
-      const newComment = await addTicketComment(accessToken, ticketId, { commentText: commentText.trim() });
+      const newComment = await addTicketComment(accessToken, ticketRef, { commentText: commentText.trim() });
       setComments((prev) => [...prev, newComment]);
       setCommentText('');
     } catch (error) {
@@ -209,7 +209,7 @@ export function AdminTicketDetailScreen({ ticketId }: { ticketId: string }) {
     event.target.value = '';
     setAttachmentUploading(true);
     try {
-      const attachment = await uploadTicketAttachment(accessToken, ticketId, file);
+      const attachment = await uploadTicketAttachment(accessToken, ticketRef, file);
       setAttachments((prev) => [...prev, attachment]);
       setNotice({ variant: 'success', title: 'Uploaded', message: `${file.name} uploaded.` });
     } catch (error) {
@@ -224,7 +224,7 @@ export function AdminTicketDetailScreen({ ticketId }: { ticketId: string }) {
     if (!window.confirm(`Delete attachment "${fileName}"?`)) return;
     setDeletingAttachmentId(attachmentId);
     try {
-      await deleteTicketAttachment(accessToken, ticketId, attachmentId);
+      await deleteTicketAttachment(accessToken, ticketRef, attachmentId);
       setAttachments((prev) => prev.filter((a) => a.id !== attachmentId));
     } catch (error) {
       setNotice({ variant: 'error', title: 'Delete failed', message: getErrorMessage(error, 'Could not delete.') });

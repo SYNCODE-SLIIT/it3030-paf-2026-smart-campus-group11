@@ -486,46 +486,50 @@ export async function createTicket(accessToken: string, payload: CreateTicketReq
   return request<TicketResponse>('/api/tickets', { method: 'POST', accessToken, body: payload });
 }
 
-export async function getTicket(accessToken: string, ticketId: string): Promise<TicketResponse> {
-  return request<TicketResponse>(`/api/tickets/${ticketId}`, { accessToken });
+function ticketApiPath(ticketRef: string) {
+  return `/api/tickets/${encodeURIComponent(ticketRef)}`;
+}
+
+export async function getTicket(accessToken: string, ticketRef: string): Promise<TicketResponse> {
+  return request<TicketResponse>(ticketApiPath(ticketRef), { accessToken });
 }
 
 export async function updateTicket(
   accessToken: string,
-  ticketId: string,
+  ticketRef: string,
   payload: UpdateTicketRequest,
 ): Promise<TicketResponse> {
-  return request<TicketResponse>(`/api/tickets/${ticketId}`, { method: 'PATCH', accessToken, body: payload });
+  return request<TicketResponse>(ticketApiPath(ticketRef), { method: 'PATCH', accessToken, body: payload });
 }
 
 export async function listTicketComments(
   accessToken: string,
-  ticketId: string,
+  ticketRef: string,
 ): Promise<TicketCommentResponse[]> {
-  return request<TicketCommentResponse[]>(`/api/tickets/${ticketId}/comments`, { accessToken });
+  return request<TicketCommentResponse[]>(`${ticketApiPath(ticketRef)}/comments`, { accessToken });
 }
 
 export async function addTicketComment(
   accessToken: string,
-  ticketId: string,
+  ticketRef: string,
   payload: AddCommentRequest,
 ): Promise<TicketCommentResponse> {
-  return request<TicketCommentResponse>(`/api/tickets/${ticketId}/comments`, { method: 'POST', accessToken, body: payload });
+  return request<TicketCommentResponse>(`${ticketApiPath(ticketRef)}/comments`, { method: 'POST', accessToken, body: payload });
 }
 
 export async function listTicketAttachments(
   accessToken: string,
-  ticketId: string,
+  ticketRef: string,
 ): Promise<TicketAttachmentResponse[]> {
-  return request<TicketAttachmentResponse[]>(`/api/tickets/${ticketId}/attachments`, { accessToken });
+  return request<TicketAttachmentResponse[]>(`${ticketApiPath(ticketRef)}/attachments`, { accessToken });
 }
 
 export async function uploadTicketAttachment(
   accessToken: string,
-  ticketId: string,
+  ticketRef: string,
   file: File,
 ): Promise<TicketAttachmentResponse> {
-  const path = `/api/tickets/${ticketId}/attachments`;
+  const path = `${ticketApiPath(ticketRef)}/attachments`;
   const formData = new FormData();
   formData.set('file', file);
 
@@ -556,31 +560,31 @@ export async function uploadTicketAttachment(
 
 export async function deleteTicketAttachment(
   accessToken: string,
-  ticketId: string,
+  ticketRef: string,
   attachmentId: string,
 ): Promise<void> {
-  return request<void>(`/api/tickets/${ticketId}/attachments/${attachmentId}`, { method: 'DELETE', accessToken });
+  return request<void>(`${ticketApiPath(ticketRef)}/attachments/${attachmentId}`, { method: 'DELETE', accessToken });
 }
 
 export async function getTicketHistory(
   accessToken: string,
-  ticketId: string,
+  ticketRef: string,
 ): Promise<TicketStatusHistoryResponse[]> {
-  return request<TicketStatusHistoryResponse[]>(`/api/tickets/${ticketId}/history`, { accessToken });
+  return request<TicketStatusHistoryResponse[]>(`${ticketApiPath(ticketRef)}/history`, { accessToken });
 }
 
 export async function updateTicketStatus(
   accessToken: string,
-  ticketId: string,
+  ticketRef: string,
   payload: TicketStatusUpdateRequest,
 ): Promise<TicketResponse> {
-  return request<TicketResponse>(`/api/tickets/${ticketId}/status`, { method: 'PUT', accessToken, body: payload });
+  return request<TicketResponse>(`${ticketApiPath(ticketRef)}/status`, { method: 'PUT', accessToken, body: payload });
 }
 
 export async function assignTicket(
   accessToken: string,
-  ticketId: string,
+  ticketRef: string,
   payload: AssignTicketRequest,
 ): Promise<TicketResponse> {
-  return request<TicketResponse>(`/api/tickets/${ticketId}/assign`, { method: 'PUT', accessToken, body: payload });
+  return request<TicketResponse>(`${ticketApiPath(ticketRef)}/assign`, { method: 'PUT', accessToken, body: payload });
 }

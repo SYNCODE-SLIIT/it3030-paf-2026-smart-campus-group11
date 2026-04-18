@@ -65,7 +65,7 @@ function formatDateTime(iso: string) {
   return new Intl.DateTimeFormat('en-LK', { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(d);
 }
 
-export function ManagerTicketDetailScreen({ ticketId }: { ticketId: string }) {
+export function ManagerTicketDetailScreen({ ticketRef }: { ticketRef: string }) {
   const { session } = useAuth();
   const router = useRouter();
   const accessToken = session?.access_token ?? null;
@@ -98,10 +98,10 @@ export function ManagerTicketDetailScreen({ ticketId }: { ticketId: string }) {
     setLoadError(null);
     try {
       const [ticketData, commentsData, attachmentsData, historyData] = await Promise.all([
-        getTicket(accessToken, ticketId),
-        listTicketComments(accessToken, ticketId),
-        listTicketAttachments(accessToken, ticketId),
-        getTicketHistory(accessToken, ticketId),
+        getTicket(accessToken, ticketRef),
+        listTicketComments(accessToken, ticketRef),
+        listTicketAttachments(accessToken, ticketRef),
+        getTicketHistory(accessToken, ticketRef),
       ]);
       setTicket(ticketData);
       setComments(commentsData);
@@ -114,7 +114,7 @@ export function ManagerTicketDetailScreen({ ticketId }: { ticketId: string }) {
     } finally {
       setLoading(false);
     }
-  }, [accessToken, ticketId]);
+  }, [accessToken, ticketRef]);
 
   React.useEffect(() => { void load(); }, [load]);
 
@@ -122,14 +122,14 @@ export function ManagerTicketDetailScreen({ ticketId }: { ticketId: string }) {
     if (!accessToken) return;
     setStatusSubmitting(true);
     try {
-      const updated = await updateTicketStatus(accessToken, ticketId, {
+      const updated = await updateTicketStatus(accessToken, ticketRef, {
         newStatus,
         note: statusNote.trim() || undefined,
         resolutionNotes: resolutionNotes.trim() || undefined,
         rejectionReason: rejectionReason.trim() || undefined,
       });
       setTicket(updated);
-      const fresh = await getTicketHistory(accessToken, ticketId);
+      const fresh = await getTicketHistory(accessToken, ticketRef);
       setHistory(fresh);
       setStatusNote('');
       setNotice({ variant: 'success', title: 'Status updated', message: `Ticket is now ${newStatus.replace('_', ' ').toLowerCase()}.` });
@@ -145,7 +145,7 @@ export function ManagerTicketDetailScreen({ ticketId }: { ticketId: string }) {
     if (!accessToken || !commentText.trim()) return;
     setCommentSubmitting(true);
     try {
-      const newComment = await addTicketComment(accessToken, ticketId, { commentText: commentText.trim() });
+      const newComment = await addTicketComment(accessToken, ticketRef, { commentText: commentText.trim() });
       setComments((prev) => [...prev, newComment]);
       setCommentText('');
     } catch (error) {
@@ -161,7 +161,7 @@ export function ManagerTicketDetailScreen({ ticketId }: { ticketId: string }) {
     event.target.value = '';
     setAttachmentUploading(true);
     try {
-      const attachment = await uploadTicketAttachment(accessToken, ticketId, file);
+      const attachment = await uploadTicketAttachment(accessToken, ticketRef, file);
       setAttachments((prev) => [...prev, attachment]);
       setNotice({ variant: 'success', title: 'Uploaded', message: `${file.name} uploaded.` });
     } catch (error) {
@@ -176,7 +176,7 @@ export function ManagerTicketDetailScreen({ ticketId }: { ticketId: string }) {
     if (!window.confirm(`Delete attachment "${fileName}"?`)) return;
     setDeletingAttachmentId(attachmentId);
     try {
-      await deleteTicketAttachment(accessToken, ticketId, attachmentId);
+      await deleteTicketAttachment(accessToken, ticketRef, attachmentId);
       setAttachments((prev) => prev.filter((a) => a.id !== attachmentId));
     } catch (error) {
       setNotice({ variant: 'error', title: 'Delete failed', message: getErrorMessage(error, 'Could not delete.') });
