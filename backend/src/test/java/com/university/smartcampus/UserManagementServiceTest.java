@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
+import java.time.Year;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -85,7 +87,7 @@ class UserManagementServiceTest extends AbstractPostgresIntegrationTest {
                 "Student",
                 "SS",
                 "0711111111",
-                "ST-2026-001",
+                null,
                 StudentFaculty.FACULTY_OF_COMPUTING,
                 StudentProgram.BSC_HONS_IT_SOFTWARE_ENGINEERING,
                 AcademicYear.YEAR_2,
@@ -99,13 +101,14 @@ class UserManagementServiceTest extends AbstractPostgresIntegrationTest {
         assertThat(response.studentProfile()).isNotNull();
         assertThat(response.studentProfile().onboardingCompleted()).isTrue();
         assertThat(response.accountStatus()).isEqualTo(AccountStatus.ACTIVE);
-        assertThat(response.studentProfile().registrationNumber()).isEqualTo("ST-2026-001");
+        String expectedPrefix = "IT" + String.format("%02d", Math.floorMod(Year.now(ZoneOffset.UTC).getValue() - 1, 100));
+        assertThat(response.studentProfile().registrationNumber()).matches(expectedPrefix + "\\d{6}");
 
         UserEntity persisted = userRepository.findById(studentUser.getId()).orElseThrow();
         assertThat(persisted.isOnboardingCompleted()).isTrue();
         assertThat(persisted.getAccountStatus()).isEqualTo(AccountStatus.ACTIVE);
         assertThat(persisted.getStudentProfile().isOnboardingCompleted()).isTrue();
-        assertThat(persisted.getStudentProfile().getRegistrationNumber()).isEqualTo("ST-2026-001");
+        assertThat(persisted.getStudentProfile().getRegistrationNumber()).matches(expectedPrefix + "\\d{6}");
     }
 
     @Test
@@ -119,7 +122,7 @@ class UserManagementServiceTest extends AbstractPostgresIntegrationTest {
                 "Student",
                 null,
                 "0711111111",
-                "ST-2026-002",
+                null,
                 StudentFaculty.FACULTY_OF_ENGINEERING,
                 StudentProgram.BSC_HONS_IT_SOFTWARE_ENGINEERING,
                 AcademicYear.YEAR_2,
