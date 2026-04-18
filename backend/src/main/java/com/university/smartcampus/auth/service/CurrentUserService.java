@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import com.university.smartcampus.common.enums.AppEnums.AccountStatus;
+import com.university.smartcampus.common.enums.AppEnums.ManagerRole;
 import com.university.smartcampus.common.enums.AppEnums.UserType;
 import com.university.smartcampus.common.exception.ForbiddenException;
 import com.university.smartcampus.common.exception.UnauthorizedException;
@@ -65,6 +66,16 @@ public class CurrentUserService {
         UserEntity user = requireCurrentUser(authentication);
         if (user.getUserType() != UserType.STUDENT) {
             throw new ForbiddenException("Student access is required.");
+        }
+        return user;
+    }
+
+    public UserEntity requireTicketManager(Authentication authentication) {
+        UserEntity user = requireCurrentUser(authentication);
+        if (user.getUserType() != UserType.MANAGER
+                || user.getManagerProfile() == null
+                || user.getManagerProfile().getManagerRole() != ManagerRole.TICKET_MANAGER) {
+            throw new ForbiddenException("Ticket manager access is required.");
         }
         return user;
     }

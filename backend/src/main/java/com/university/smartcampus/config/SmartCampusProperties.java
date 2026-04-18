@@ -8,6 +8,7 @@ public class SmartCampusProperties {
     private final Auth auth = new Auth();
     private final Security security = new Security();
     private final Bootstrap bootstrap = new Bootstrap();
+    private final Storage storage = new Storage();
 
     public Auth getAuth() {
         return auth;
@@ -19,6 +20,10 @@ public class SmartCampusProperties {
 
     public Bootstrap getBootstrap() {
         return bootstrap;
+    }
+
+    public Storage getStorage() {
+        return storage;
     }
 
     public static class Auth {
@@ -145,6 +150,44 @@ public class SmartCampusProperties {
 
         public Admin getAdmin() {
             return admin;
+        }
+    }
+
+    public static class Storage {
+        private final TicketAttachments ticketAttachments = new TicketAttachments();
+
+        public TicketAttachments getTicketAttachments() {
+            return ticketAttachments;
+        }
+    }
+
+    public static class TicketAttachments {
+        private String bucket = "ticket-attachments";
+        private boolean publicBucket = true;
+        private long fileSizeLimitBytes = 10 * 1024 * 1024;
+
+        public String getBucket() {
+            return bucket;
+        }
+
+        public void setBucket(String bucket) {
+            this.bucket = bucket;
+        }
+
+        public boolean isPublicBucket() {
+            return publicBucket;
+        }
+
+        public void setPublicBucket(boolean publicBucket) {
+            this.publicBucket = publicBucket;
+        }
+
+        public long getFileSizeLimitBytes() {
+            return fileSizeLimitBytes;
+        }
+
+        public void setFileSizeLimitBytes(long fileSizeLimitBytes) {
+            this.fileSizeLimitBytes = fileSizeLimitBytes;
         }
     }
 

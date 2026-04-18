@@ -10,6 +10,8 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import com.university.smartcampus.common.dto.ApiDtos.ErrorResponse;
 import com.university.smartcampus.common.exception.BadRequestException;
@@ -37,6 +39,18 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ErrorResponse> handleBadRequest(BadRequestException exception, HttpServletRequest request) {
         return build(HttpStatus.BAD_REQUEST, exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<ErrorResponse> handleMissingRequestPart(MissingServletRequestPartException exception,
+            HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "Attachment file is required.", request);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleMaxUploadSize(MaxUploadSizeExceededException exception,
+            HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "Uploaded file is too large.", request);
     }
 
     @ExceptionHandler({ ForbiddenException.class, AccessDeniedException.class })

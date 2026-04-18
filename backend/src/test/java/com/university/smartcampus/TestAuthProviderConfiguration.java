@@ -12,6 +12,8 @@ import org.springframework.context.annotation.Primary;
 import com.university.smartcampus.auth.identity.AuthIdentityClient;
 import com.university.smartcampus.auth.provider.AuthProviderClient;
 import com.university.smartcampus.common.enums.AppEnums.AuthDeliveryMethod;
+import com.university.smartcampus.common.exception.BadRequestException;
+import com.university.smartcampus.ticket.storage.TicketAttachmentStorageClient;
 
 @TestConfiguration
 public class TestAuthProviderConfiguration {
@@ -26,6 +28,12 @@ public class TestAuthProviderConfiguration {
     @Primary
     RecordingAuthIdentityClient recordingAuthIdentityClient() {
         return new RecordingAuthIdentityClient();
+    }
+
+    @Bean
+    @Primary
+    RecordingTicketAttachmentStorageClient recordingTicketAttachmentStorageClient() {
+        return new RecordingTicketAttachmentStorageClient();
     }
 
     static class RecordingAuthProviderClient implements AuthProviderClient {
@@ -94,6 +102,50 @@ public class TestAuthProviderConfiguration {
         void reset() {
             identities.clear();
             deletedIdentityIds.clear();
+        }
+    }
+
+    static class RecordingTicketAttachmentStorageClient implements TicketAttachmentStorageClient {
+
+        private final List<StoredAttachment> uploads = new ArrayList<>();
+        private final List<String> deletedUrls = new ArrayList<>();
+
+        @Override
+        public StoredAttachment upload(UUID ticketId, org.springframework.web.multipart.MultipartFile file) {
+            if (file == null || file.isEmpty()) {
+                throw new BadRequestException("Attachment file is required.");
+            }
+
+            String fileName = file.getOriginalFilename() == null || file.getOriginalFilename().isBlank()
+                    ? "attachment"
+                    : file.getOriginalFilename();
+            String fileType = file.getContentType() == null || file.getContentType().isBlank()
+                    ? "application/octet-stream"
+                    : file.getContentType();
+            StoredAttachment result = new StoredAttachment(
+                    fileName,
+                    "https://storage.campus.test/ticket-attachments/tickets/" + ticketId + "/" + fileName,
+                    fileType);
+            uploads.add(result);
+            return result;
+        }
+
+        @Override
+        public void deleteByPublicUrl(String fileUrl) {
+            deletedUrls.add(fileUrl);
+        }
+
+        List<StoredAttachment> uploads() {
+            return Collections.unmodifiableList(uploads);
+        }
+
+        List<String> deletedUrls() {
+            return Collections.unmodifiableList(deletedUrls);
+        }
+
+        void reset() {
+            uploads.clear();
+            deletedUrls.clear();
         }
     }
 }
