@@ -114,8 +114,9 @@ function TicketSection({ label, color, tickets, onView, assignOptions, onAssign 
           display: 'flex',
           gap: 16,
           overflowX: 'auto',
-          paddingTop: 16,
-          paddingBottom: 12,
+          padding: '18px 24px 36px',
+          margin: '-18px -24px -24px',
+          scrollPaddingInline: 24,
           scrollbarWidth: 'thin',
         }}
       >
@@ -363,9 +364,9 @@ export function AdminTicketsScreen() {
 
     if (groups.length === 0) {
       const emptyMsg: Record<Exclude<MainTab, 'done'>, string> = {
-        unassigned: queueFilter === 'mine' ? 'No unassigned tickets in your queue.' : 'No tickets awaiting assignment.',
-        assigned:   queueFilter === 'mine' ? 'No tickets assigned to you.' : 'No tickets waiting for action.',
-        in_progress: queueFilter === 'mine' ? 'No tickets in progress for you.' : 'No tickets currently in progress.',
+        unassigned: 'No tickets awaiting assignment.',
+        assigned: 'No tickets waiting for action.',
+        in_progress: 'No tickets currently in progress.',
       };
       return (
         <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 48 }}>

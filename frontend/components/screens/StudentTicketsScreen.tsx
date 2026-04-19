@@ -76,8 +76,9 @@ function StatusSection({ label, color, tickets, onView }: StatusSectionProps) {
           display: 'flex',
           gap: 16,
           overflowX: 'auto',
-          paddingTop: 16,
-          paddingBottom: 12,
+          padding: '18px 24px 36px',
+          margin: '-18px -24px -24px',
+          scrollPaddingInline: 24,
           scrollbarWidth: 'thin',
         }}
       >
