@@ -180,11 +180,77 @@ export function AdminTicketsScreen() {
     [router],
   );
 
-  const currentCount =
-    mainTab === 'unassigned' ? unassigned.length
+  const currentCount = queueFilter === 'mine'
+    ? assigned.length + inProgress.length
+    : mainTab === 'unassigned' ? unassigned.length
     : mainTab === 'assigned' ? assigned.length
     : mainTab === 'in_progress' ? inProgress.length
     : done.length;
+
+  const renderMyQueue = () => {
+    const sections: { label: string; color: string; base: TicketSummaryResponse[] }[] = [
+      { label: 'Open',        color: 'var(--blue-400)',   base: assigned },
+      { label: 'In Progress', color: 'var(--yellow-400)', base: inProgress },
+    ];
+
+    const hasAny = sections.some((s) => s.base.length > 0);
+    if (!hasAny) {
+      return (
+        <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 48 }}>
+          No tickets in your queue.
+        </p>
+      );
+    }
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 36 }}>
+        {sections.map(({ label, color, base }) => {
+          const groups = PRIORITY_ORDER
+            .map((priority) => ({
+              priority,
+              tickets: sortByDate(base.filter((t) => t.priority === priority), sortOrder),
+            }))
+            .filter((g) => g.tickets.length > 0);
+
+          if (groups.length === 0) return null;
+
+          return (
+            <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+              {/* Status heading */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ height: 1, flex: 1, background: 'var(--border)' }} />
+                <span
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 9,
+                    fontWeight: 700,
+                    letterSpacing: '.22em',
+                    textTransform: 'uppercase',
+                    color,
+                    padding: '0 4px',
+                  }}
+                >
+                  {label}
+                </span>
+                <div style={{ height: 1, flex: 1, background: 'var(--border)' }} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+                {groups.map(({ priority, tickets: t }) => (
+                  <TicketSection
+                    key={priority}
+                    label={PRIORITY_LABELS[priority]}
+                    color={PRIORITY_COLOR[priority]}
+                    tickets={t}
+                    onView={handleView}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   const renderContent = () => {
     if (loading) {
@@ -194,6 +260,8 @@ export function AdminTicketsScreen() {
         </p>
       );
     }
+
+    if (queueFilter === 'mine') return renderMyQueue();
 
     if (mainTab === 'done') {
       const groups = DONE_STATUS_ORDER
@@ -361,17 +429,19 @@ export function AdminTicketsScreen() {
           />
         </div>
 
-        <Tabs
-          variant="pill"
-          tabs={[
-            { label: 'Unassigned',  value: 'unassigned',  badge: unassigned.length },
-            { label: 'Assigned',    value: 'assigned',    badge: assigned.length },
-            { label: 'In Progress', value: 'in_progress', badge: inProgress.length },
-            { label: 'Done',        value: 'done',        badge: done.length },
-          ]}
-          value={mainTab}
-          onChange={(v) => { setMainTab(v as MainTab); }}
-        />
+        {queueFilter === 'all' && (
+          <Tabs
+            variant="pill"
+            tabs={[
+              { label: 'Unassigned',  value: 'unassigned',  badge: unassigned.length },
+              { label: 'Assigned',    value: 'assigned',    badge: assigned.length },
+              { label: 'In Progress', value: 'in_progress', badge: inProgress.length },
+              { label: 'Done',        value: 'done',        badge: done.length },
+            ]}
+            value={mainTab}
+            onChange={(v) => { setMainTab(v as MainTab); }}
+          />
+        )}
 
         {loadError && (
           <Alert variant="error" title="Load failed">
