@@ -2,14 +2,13 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Paperclip, Trash2, Upload } from 'lucide-react';
+import { ArrowLeft, Paperclip } from 'lucide-react';
 
 import { useAuth } from '@/components/providers/AuthProvider';
 import { Alert, Button, Card, Chip, Select, Tabs, Textarea } from '@/components/ui';
 import {
   addTicketComment,
   assignTicket,
-  deleteTicketAttachment,
   getErrorMessage,
   getTicket,
   getTicketHistory,
@@ -17,7 +16,6 @@ import {
   listTicketComments,
   listUsers,
   updateTicketStatus,
-  uploadTicketAttachment,
 } from '@/lib/api-client';
 import type {
   TicketAttachmentResponse,
@@ -103,10 +101,6 @@ export function AdminTicketDetailScreen({ ticketRef }: { ticketRef: string }) {
 
   const [commentText, setCommentText] = React.useState('');
   const [commentSubmitting, setCommentSubmitting] = React.useState(false);
-  const [attachmentUploading, setAttachmentUploading] = React.useState(false);
-  const [deletingAttachmentId, setDeletingAttachmentId] = React.useState<string | null>(null);
-
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const load = React.useCallback(async () => {
     if (!accessToken) { setLoading(false); setLoadError('Your session is unavailable.'); return; }
@@ -203,36 +197,6 @@ export function AdminTicketDetailScreen({ ticketRef }: { ticketRef: string }) {
     }
   }
 
-  async function handleUpload(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file || !accessToken) return;
-    event.target.value = '';
-    setAttachmentUploading(true);
-    try {
-      const attachment = await uploadTicketAttachment(accessToken, ticketRef, file);
-      setAttachments((prev) => [...prev, attachment]);
-      setNotice({ variant: 'success', title: 'Uploaded', message: `${file.name} uploaded.` });
-    } catch (error) {
-      setNotice({ variant: 'error', title: 'Upload failed', message: getErrorMessage(error, 'Could not upload the file.') });
-    } finally {
-      setAttachmentUploading(false);
-    }
-  }
-
-  async function handleDeleteAttachment(attachmentId: string, fileName: string) {
-    if (!accessToken) return;
-    if (!window.confirm(`Delete attachment "${fileName}"?`)) return;
-    setDeletingAttachmentId(attachmentId);
-    try {
-      await deleteTicketAttachment(accessToken, ticketRef, attachmentId);
-      setAttachments((prev) => prev.filter((a) => a.id !== attachmentId));
-    } catch (error) {
-      setNotice({ variant: 'error', title: 'Delete failed', message: getErrorMessage(error, 'Could not delete.') });
-    } finally {
-      setDeletingAttachmentId(null);
-    }
-  }
-
   if (loading) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -252,7 +216,9 @@ export function AdminTicketDetailScreen({ ticketRef }: { ticketRef: string }) {
   }
 
   const isClosed = ticket.status === 'CLOSED' || ticket.status === 'REJECTED';
-  const canComment = ticket.status !== 'OPEN' && !isClosed;
+  const isAssignedToMe = Boolean(appUser && ticket.assignedToId === appUser.id);
+  const canManageStatus = isAssignedToMe && !isClosed;
+  const canComment = ticket.status === 'IN_PROGRESS';
 
   const managerOptions = managers.map((m) => ({ value: m.id, label: getManagerDisplayName(m) }));
 
@@ -302,31 +268,39 @@ export function AdminTicketDetailScreen({ ticketRef }: { ticketRef: string }) {
         <p style={{ margin: '0 0 12px', fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700, color: 'var(--text-h)' }}>
           Assignment
         </p>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 200 }}>
-            <Select
-              id="assign-select"
-              name="assign-select"
-              label="Assign to ticket manager"
-              value={selectedAssignee}
-              onChange={(e) => setSelectedAssignee(e.target.value)}
-              options={[
-                { value: '', label: 'Select a manager…' },
-                ...managerOptions,
-              ]}
-            />
+        {ticket.status === 'OPEN' ? (
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <Select
+                id="assign-select"
+                name="assign-select"
+                label="Assign to ticket manager"
+                value={selectedAssignee}
+                onChange={(e) => setSelectedAssignee(e.target.value)}
+                options={[
+                  { value: '', label: 'Select a manager…' },
+                  ...managerOptions,
+                ]}
+              />
+            </div>
+            <Button size="sm" onClick={() => { void handleAssign(); }} loading={assigning} disabled={!selectedAssignee || selectedAssignee === ticket.assignedToId}>
+              Assign
+            </Button>
+            <Button variant="subtle" size="sm" onClick={() => { void handleAssignToSelf(); }} loading={assigning}>
+              Assign to Myself
+            </Button>
           </div>
-          <Button size="sm" onClick={() => { void handleAssign(); }} loading={assigning} disabled={!selectedAssignee || selectedAssignee === ticket.assignedToId}>
-            Assign
-          </Button>
-          <Button variant="subtle" size="sm" onClick={() => { void handleAssignToSelf(); }} loading={assigning}>
-            Assign to Myself
-          </Button>
-        </div>
+        ) : (
+          <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 13 }}>
+            {ticket.assignedToName
+              ? `Assigned to ${ticket.assignedToName}. Assignment is locked after acceptance.`
+              : 'Assignment is locked after acceptance.'}
+          </p>
+        )}
       </Card>
 
       {/* Status Actions */}
-      {!isClosed && (
+      {canManageStatus && (
         <Card>
           <p style={{ margin: '0 0 12px', fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700, color: 'var(--text-h)' }}>
             Status Actions
@@ -450,7 +424,7 @@ export function AdminTicketDetailScreen({ ticketRef }: { ticketRef: string }) {
                 <Alert variant="info" title="Comments locked">
                   {isClosed
                     ? `Comments are disabled for ${ticket.status === 'CLOSED' ? 'closed' : 'rejected'} tickets.`
-                    : 'Comments are available after the ticket is accepted (In Progress).'}
+                    : 'Comments are available while the ticket is in progress.'}
                 </Alert>
               )}
               {comments.length === 0 && canComment && (
@@ -508,17 +482,8 @@ export function AdminTicketDetailScreen({ ticketRef }: { ticketRef: string }) {
                     </a>
                     <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>{a.fileType} · {formatDateTime(a.uploadedAt)}</p>
                   </div>
-                  <Button variant="ghost-danger" size="xs" loading={deletingAttachmentId === a.id} iconLeft={<Trash2 size={12} />} onClick={() => { void handleDeleteAttachment(a.id, a.fileName); }}>
-                    Delete
-                  </Button>
                 </div>
               ))}
-              <div style={{ marginTop: 4 }}>
-                <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleUpload} />
-                <Button variant="ghost" size="sm" loading={attachmentUploading} iconLeft={<Upload size={14} />} onClick={() => { fileInputRef.current?.click(); }}>
-                  Upload File
-                </Button>
-              </div>
             </div>
           )}
 
