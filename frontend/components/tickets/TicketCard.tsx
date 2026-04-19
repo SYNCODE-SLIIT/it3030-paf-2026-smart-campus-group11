@@ -1,13 +1,31 @@
+'use client';
+
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { User } from 'lucide-react';
 import { Button, Chip } from '@/components/ui';
 import type { TicketPriority, TicketStatus, TicketSummaryResponse } from '@/lib/api-types';
+
+interface AssignOption {
+  id: string;
+  label: string;
+}
 
 interface TicketCardProps {
   ticket: TicketSummaryResponse;
   onView: () => void;
   showReporter?: boolean;
+  assignOptions?: AssignOption[];
+  onAssign?: (userId: string) => void;
 }
+
+type AssignMenuPosition = {
+  left: number;
+  width: number;
+  maxHeight: number;
+  top?: number;
+  bottom?: number;
+};
 
 const CATEGORY_LABELS: Record<string, string> = {
   ELECTRICAL: 'Electrical',
@@ -67,15 +85,93 @@ const STATUS_DISPLAY: Record<TicketStatus, string> = {
   REJECTED:    'Rejected',
 };
 
+function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 function formatDate(iso: string) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return new Intl.DateTimeFormat('en-LK', { year: 'numeric', month: 'short', day: '2-digit' }).format(d);
 }
 
-export function TicketCard({ ticket, onView, showReporter = false }: TicketCardProps) {
+export function TicketCard({ ticket, onView, showReporter = false, assignOptions, onAssign }: TicketCardProps) {
   const [hovered, setHovered] = React.useState(false);
+  const [assignOpen, setAssignOpen] = React.useState(false);
+  const [assignMenuPosition, setAssignMenuPosition] = React.useState<AssignMenuPosition | null>(null);
+  const assignRef = React.useRef<HTMLDivElement>(null);
+  const assignButtonRef = React.useRef<HTMLButtonElement>(null);
+  const assignMenuRef = React.useRef<HTMLDivElement>(null);
   const segs = STATUS_SEGS[ticket.status];
+
+  const updateAssignMenuPosition = React.useCallback(() => {
+    const button = assignButtonRef.current;
+    if (!button) return;
+
+    const rect = button.getBoundingClientRect();
+    const viewportInset = 12;
+    const gap = 6;
+    const width = Math.min(240, Math.max(190, window.innerWidth - viewportInset * 2));
+    const left = Math.min(
+      Math.max(viewportInset, rect.left),
+      window.innerWidth - width - viewportInset,
+    );
+    const spaceBelow = window.innerHeight - rect.bottom - viewportInset;
+    const spaceAbove = rect.top - viewportInset;
+    const shouldOpenUp = spaceBelow < 180 && spaceAbove > spaceBelow;
+    const available = Math.max(80, (shouldOpenUp ? spaceAbove : spaceBelow) - gap);
+
+    setAssignMenuPosition({
+      left,
+      width,
+      maxHeight: Math.min(260, available),
+      ...(shouldOpenUp
+        ? { bottom: window.innerHeight - rect.top + gap }
+        : { top: rect.bottom + gap }),
+    });
+  }, []);
+
+  React.useEffect(() => {
+    if (!assignOpen) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        assignRef.current?.contains(target) ||
+        assignMenuRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setAssignOpen(false);
+    };
+    const keyHandler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setAssignOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    document.addEventListener('keydown', keyHandler);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('keydown', keyHandler);
+    };
+  }, [assignOpen]);
+
+  React.useEffect(() => {
+    if (!assignOpen) {
+      setAssignMenuPosition(null);
+      return;
+    }
+
+    updateAssignMenuPosition();
+    window.addEventListener('resize', updateAssignMenuPosition);
+    window.addEventListener('scroll', updateAssignMenuPosition, true);
+    return () => {
+      window.removeEventListener('resize', updateAssignMenuPosition);
+      window.removeEventListener('scroll', updateAssignMenuPosition, true);
+    };
+  }, [assignOpen, updateAssignMenuPosition]);
 
   return (
     <div
@@ -88,13 +184,14 @@ export function TicketCard({ ticket, onView, showReporter = false }: TicketCardP
         boxShadow: hovered ? 'var(--card-shadow-hover)' : 'var(--card-shadow)',
         transform: hovered ? 'translateY(-3px)' : 'translateY(0)',
         transition: 'transform .22s ease, box-shadow .22s ease',
+        position: 'relative',
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
       }}
     >
       {/* Priority stripe */}
-      <div style={{ height: 3, background: PRIORITY_STRIPE[ticket.priority] }} />
+      <div style={{ height: 3, background: PRIORITY_STRIPE[ticket.priority], borderTopLeftRadius: 'var(--radius-md)', borderTopRightRadius: 'var(--radius-md)' }} />
 
       {/* Header */}
       <div
@@ -107,7 +204,7 @@ export function TicketCard({ ticket, onView, showReporter = false }: TicketCardP
           gap: 10,
         }}
       >
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ flex: 1, minWidth: 0, width: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 6 }}>
             <span
               style={{
@@ -136,6 +233,7 @@ export function TicketCard({ ticket, onView, showReporter = false }: TicketCardP
           >
             {ticket.title}
           </p>
+          {/* Always reserves 2-line height so cards align regardless of description length */}
           <p
             style={{
               margin: 0,
@@ -146,6 +244,8 @@ export function TicketCard({ ticket, onView, showReporter = false }: TicketCardP
               display: '-webkit-box',
               WebkitLineClamp: 2,
               WebkitBoxOrient: 'vertical',
+              minHeight: '34px',
+              width: '100%',
             }}
           >
             {ticket.description}
@@ -196,58 +296,162 @@ export function TicketCard({ ticket, onView, showReporter = false }: TicketCardP
       </div>
 
       {/* Footer */}
-      <div
-        style={{
-          padding: '10px 16px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 6,
-        }}
-      >
-        {showReporter && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <User size={10} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-            <span
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 9.5,
-                color: 'var(--text-muted)',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {ticket.reportedByEmail}
-            </span>
-          </div>
-        )}
-        {ticket.assignedToName && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <User size={10} style={{ color: 'var(--blue-400)', flexShrink: 0 }} />
-            <span
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 9.5,
-                color: 'var(--text-muted)',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Assigned: {ticket.assignedToName}
-            </span>
-          </div>
-        )}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ padding: '10px 16px 13px', display: 'flex', flexDirection: 'column', gap: 9 }}>
+        {/* Row 1: reporter (optional) + date */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          {showReporter ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
+              <User size={10} style={{ color: 'var(--text-muted)', flexShrink: 0, opacity: 0.45 }} />
+              <span
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 8.5,
+                  fontWeight: 500,
+                  color: 'var(--text-muted)',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  maxWidth: 130,
+                }}
+              >
+                {ticket.reportedByEmail}
+              </span>
+            </div>
+          ) : (
+            <div />
+          )}
           <span
             style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: 9.5,
+              fontSize: 8,
               color: 'var(--text-muted)',
+              flexShrink: 0,
+              letterSpacing: '.02em',
+              opacity: 0.8,
             }}
           >
             {formatDate(ticket.createdAt)}
           </span>
+        </div>
+
+        {/* Row 2: assignee avatar / assign button + view button */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          {ticket.assignedToName ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+              <div
+                style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: '50%',
+                  background: 'var(--blue-400)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 6.5,
+                  fontWeight: 600,
+                  color: '#fff',
+                  flexShrink: 0,
+                  border: '1.5px solid var(--surface)',
+                }}
+              >
+                {getInitials(ticket.assignedToName)}
+              </div>
+              <span
+                style={{
+                  fontSize: 9.5,
+                  fontWeight: 500,
+                  color: 'var(--text-body)',
+                  letterSpacing: '-0.01em',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {ticket.assignedToName}
+              </span>
+            </div>
+          ) : assignOptions && assignOptions.length > 0 && onAssign ? (
+            <div ref={assignRef} style={{ position: 'relative' }}>
+              <button
+                ref={assignButtonRef}
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setAssignOpen((v) => !v); }}
+                aria-haspopup="menu"
+                aria-expanded={assignOpen}
+                style={{
+                  fontSize: 9,
+                  fontWeight: 600,
+                  fontFamily: 'var(--font-mono)',
+                  letterSpacing: '.08em',
+                  textTransform: 'uppercase',
+                  color: 'var(--text-muted)',
+                  background: 'none',
+                  border: '1px dashed var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '3px 8px',
+                  cursor: 'pointer',
+                }}
+              >
+                + Assign
+              </button>
+              {assignOpen && typeof document !== 'undefined' && createPortal(
+                <div
+                  ref={assignMenuRef}
+                  role="menu"
+                  style={{
+                    position: 'fixed',
+                    left: assignMenuPosition?.left ?? 0,
+                    width: assignMenuPosition?.width ?? 220,
+                    ...(assignMenuPosition?.bottom !== undefined
+                      ? { bottom: assignMenuPosition.bottom }
+                      : { top: assignMenuPosition?.top ?? 0 }),
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-md)',
+                    boxShadow: 'var(--card-shadow-hover)',
+                    maxHeight: assignMenuPosition?.maxHeight ?? 260,
+                    zIndex: 1000,
+                    overflowY: 'auto',
+                    overflowX: 'hidden',
+                    visibility: assignMenuPosition ? 'visible' : 'hidden',
+                  }}
+                >
+                  {assignOptions.map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      role="menuitem"
+                      onClick={(e) => { e.stopPropagation(); onAssign(opt.id); setAssignOpen(false); }}
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '7px 12px',
+                        fontSize: 11,
+                        color: 'var(--text-body)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--surface-hover, rgba(0,0,0,0.04))'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                ,
+                document.body,
+              )}
+            </div>
+          ) : (
+            <div />
+          )}
           <Button variant="ghost" size="xs" onClick={onView}>
             View
           </Button>
