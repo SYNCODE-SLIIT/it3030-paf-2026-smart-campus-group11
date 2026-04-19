@@ -44,16 +44,27 @@ function GoogleLogo({ size = 16 }: { size?: number }) {
   );
 }
 
+function MicrosoftLogo({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="2" y="2" width="9" height="9" fill="#f25022" />
+      <rect x="13" y="2" width="9" height="9" fill="#7fba00" />
+      <rect x="2" y="13" width="9" height="9" fill="#00a4ef" />
+      <rect x="13" y="13" width="9" height="9" fill="#ffb900" />
+    </svg>
+  );
+}
+
 function inviteReasonNotice(reason: string | null, remainingAttempts: number | null) {
   switch (reason) {
     case 'wrong_account':
       return {
         variant: 'error' as const,
-        title: 'Wrong Google account',
+        title: 'Wrong account selected',
         message:
           remainingAttempts && remainingAttempts > 0
-            ? `Please choose the invited Google account. ${remainingAttempts} tries left.`
-            : 'Please choose the invited Google account.',
+            ? `Please choose the invited account. ${remainingAttempts} tries left.`
+            : 'Please choose the invited account.',
       };
     case 'invite_expired':
       return {
@@ -87,7 +98,7 @@ function inviteReasonNotice(reason: string | null, remainingAttempts: number | n
 function AuthWelcomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { appUser, loading, refreshMe, session, signInWithGoogle } = useAuth();
+  const { appUser, loading, refreshMe, session, signInWithGoogle, signInWithMicrosoft } = useAuth();
   const reason = searchParams.get('reason');
   const inviteEmailHint = searchParams.get('email');
   const remainingAttempts = React.useMemo(() => {
@@ -104,6 +115,7 @@ function AuthWelcomeContent() {
     [reason, remainingAttempts],
   );
   const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
+  const [isMicrosoftLoading, setIsMicrosoftLoading] = React.useState(false);
   const [notice, setNotice] = React.useState<NoticeState>(initialReasonNotice);
   const [isHydratingUser, setIsHydratingUser] = React.useState(false);
   const [isPasswordRedirecting, setIsPasswordRedirecting] = React.useState(false);
@@ -247,6 +259,23 @@ function AuthWelcomeContent() {
     }
   }
 
+  async function handleMicrosoftSignIn() {
+    setNotice(null);
+    setIsMicrosoftLoading(true);
+
+    try {
+      setInviteFlowState(primeInviteFlowState(displayEmail));
+      await signInWithMicrosoft({ flow: 'invite' });
+    } catch (error) {
+      setNotice({
+        variant: 'error',
+        title: 'Microsoft sign-in failed',
+        message: getErrorMessage(error, 'We could not start Microsoft authentication.'),
+      });
+      setIsMicrosoftLoading(false);
+    }
+  }
+
   async function handlePasswordSaved() {
     setNotice({
       variant: 'info',
@@ -263,7 +292,7 @@ function AuthWelcomeContent() {
         setNotice({
           variant: 'warning',
           title: 'Account activated',
-          message: 'Password was saved, but we could not load your profile yet. Please continue with Google sign-in.',
+          message: 'Password was saved, but we could not load your profile yet. Please continue with Google or Microsoft sign-in.',
         });
         return;
       }
@@ -471,6 +500,11 @@ function AuthWelcomeContent() {
           display: grid;
           gap: 8px;
         }
+        .welcome-auth-provider-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 10px;
+        }
         @media (max-height: 850px) {
           .welcome-auth-frame {
             height: clamp(520px, 72vh, 600px);
@@ -529,6 +563,11 @@ function AuthWelcomeContent() {
             display: none;
           }
         }
+        @media (max-width: 620px) {
+          .welcome-auth-provider-grid {
+            grid-template-columns: 1fr;
+          }
+        }
       `}</style>
 
       <div className="welcome-auth-frame">
@@ -582,34 +621,63 @@ function AuthWelcomeContent() {
 
           {!session ? (
             <Alert variant="info" title="Authentication required">
-              Continue with Google sign-in below. Password setup will appear after invite authentication is complete.
+              Continue with Google or Microsoft sign-in below. Password setup will appear after invite authentication is complete.
             </Alert>
           ) : null}
 
           {!appUser && session && !shouldHidePasswordSetup ? (
             <Alert variant="warning" title="Profile still loading">
-              Your invite session is active, but profile sync is still running. Wait a moment, or continue with Google sign-in.
+              Your invite session is active, but profile sync is still running. Wait a moment, or continue with Google or Microsoft sign-in.
             </Alert>
           ) : null}
 
           <div className="welcome-divider">
             <span />
-            <p>Or Authenticate With</p>
+            <p>OR SIGN IN WITH</p>
             <span />
           </div>
 
           <div className="welcome-auth-actions">
-            <Button
-              variant="subtle"
-              size="md"
-              loading={isGoogleLoading || isPasswordRedirecting}
-              iconLeft={<GoogleLogo size={18} />}
-              onClick={() => {
-                void handleGoogleSignIn();
-              }}
-            >
-              Sign In With SSO / Google
-            </Button>
+            <div className="welcome-auth-provider-grid">
+              <Button
+                variant="subtle"
+                size="md"
+                loading={isGoogleLoading}
+                disabled={isMicrosoftLoading || isPasswordRedirecting}
+                iconLeft={<GoogleLogo size={18} />}
+                onClick={() => {
+                  void handleGoogleSignIn();
+                }}
+                style={{
+                  background: 'var(--neutral-900)',
+                  color: '#f8f8f8',
+                  border: '1px solid var(--neutral-700)',
+                  textTransform: 'none',
+                  letterSpacing: '0.01em',
+                }}
+              >
+                Google
+              </Button>
+              <Button
+                variant="subtle"
+                size="md"
+                loading={isMicrosoftLoading}
+                disabled={isGoogleLoading || isPasswordRedirecting}
+                iconLeft={<MicrosoftLogo size={18} />}
+                onClick={() => {
+                  void handleMicrosoftSignIn();
+                }}
+                style={{
+                  background: 'var(--neutral-900)',
+                  color: '#f8f8f8',
+                  border: '1px solid var(--neutral-700)',
+                  textTransform: 'none',
+                  letterSpacing: '0.01em',
+                }}
+              >
+                Microsoft
+              </Button>
+            </div>
 
             <p className="welcome-terms">
               By continuing, you agree to our <a href="#">Institutional Security Terms</a> and{' '}

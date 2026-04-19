@@ -86,8 +86,10 @@ function AuthCallbackClient() {
       const hashParams = parseHashParams();
       const hashType = hashParams.get('type');
       const isInviteGoogleFlow = queryFlow === 'invite-google';
+      const isInviteMicrosoftFlow = queryFlow === 'invite-microsoft';
+      const isInviteOAuthFlow = isInviteGoogleFlow || isInviteMicrosoftFlow;
       const isInviteLinkFlow = queryFlow === 'invite' || queryType === 'invite' || hashType === 'invite';
-      const isInviteFlow = isInviteGoogleFlow || isInviteLinkFlow;
+      const isInviteFlow = isInviteOAuthFlow || isInviteLinkFlow;
 
       const toInviteWelcome = (
         reason?: string,
@@ -229,7 +231,7 @@ function AuthCallbackClient() {
           return;
         }
 
-        if (isInviteGoogleFlow) {
+        if (isInviteOAuthFlow) {
           clearInviteFlowState();
           router.replace(nextPath);
           return;
