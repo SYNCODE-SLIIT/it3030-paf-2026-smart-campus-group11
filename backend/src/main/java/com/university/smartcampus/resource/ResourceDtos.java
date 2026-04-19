@@ -2,6 +2,7 @@ package com.university.smartcampus.resource;
 
 import java.time.Instant;
 import java.time.LocalTime;
+import java.util.List;
 import java.util.UUID;
 
 import com.university.smartcampus.AppEnums.ResourceCategory;
@@ -73,7 +74,42 @@ public final class ResourceDtos {
         LocalTime availableFrom,
         LocalTime availableTo,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        ResourceTypeDetails resourceType,
+        LocationDetails locationDetails,
+        List<ResourceFeatureDetails> features,
+        List<ResourceImageDetails> images
+    ) {
+    }
+
+    public record ResourceTypeDetails(
+        UUID id,
+        String code,
+        String name,
+        String category
+    ) {
+    }
+
+    public record LocationDetails(
+        UUID id,
+        String locationName,
+        String buildingName,
+        String floor,
+        String roomCode,
+        String locationType
+    ) {
+    }
+
+    public record ResourceFeatureDetails(
+        String code,
+        String name
+    ) {
+    }
+
+    public record ResourceImageDetails(
+        String imageUrl,
+        boolean isPrimary,
+        int displayOrder
     ) {
     }
 }

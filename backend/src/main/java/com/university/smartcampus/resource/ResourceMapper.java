@@ -1,10 +1,17 @@
 package com.university.smartcampus.resource;
 
+import java.util.Comparator;
+import java.util.List;
+
 import org.springframework.stereotype.Component;
 
 import com.university.smartcampus.resource.ResourceDtos.CreateResourceRequest;
+import com.university.smartcampus.resource.ResourceDtos.LocationDetails;
+import com.university.smartcampus.resource.ResourceDtos.ResourceFeatureDetails;
+import com.university.smartcampus.resource.ResourceDtos.ResourceImageDetails;
 import com.university.smartcampus.resource.ResourceDtos.ResourceResponse;
 import com.university.smartcampus.resource.ResourceDtos.ResourceSummary;
+import com.university.smartcampus.resource.ResourceDtos.ResourceTypeDetails;
 import com.university.smartcampus.resource.ResourceDtos.UpdateResourceRequest;
 
 @Component
@@ -87,7 +94,11 @@ public class ResourceMapper {
             resource.getAvailableFrom(),
             resource.getAvailableTo(),
             resource.getCreatedAt(),
-            resource.getUpdatedAt()
+            resource.getUpdatedAt(),
+            toResourceTypeDetails(resource.getResourceType()),
+            toLocationDetails(resource.getLocationEntity()),
+            toFeatureDetails(resource),
+            toImageDetails(resource)
         );
     }
 
@@ -102,5 +113,59 @@ public class ResourceMapper {
     private String trimToNull(String value) {
         String trimmed = trim(value);
         return trimmed == null || trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private ResourceTypeDetails toResourceTypeDetails(ResourceType resourceType) {
+        if (resourceType == null) {
+            return null;
+        }
+
+        return new ResourceTypeDetails(
+            resourceType.getId(),
+            resourceType.getCode(),
+            resourceType.getName(),
+            resourceType.getCategory() == null ? null : resourceType.getCategory().name()
+        );
+    }
+
+    private LocationDetails toLocationDetails(Location location) {
+        if (location == null) {
+            return null;
+        }
+
+        return new LocationDetails(
+            location.getId(),
+            location.getLocationName(),
+            location.getBuildingName(),
+            location.getFloor(),
+            location.getRoomCode(),
+            location.getLocationType()
+        );
+    }
+
+    private List<ResourceFeatureDetails> toFeatureDetails(ResourceEntity resource) {
+        if (resource.getFeatures() == null || resource.getFeatures().isEmpty()) {
+            return List.of();
+        }
+
+        return resource.getFeatures().stream()
+            .sorted(Comparator.comparing(ResourceFeature::getName, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+            .map(feature -> new ResourceFeatureDetails(feature.getCode(), feature.getName()))
+            .toList();
+    }
+
+    private List<ResourceImageDetails> toImageDetails(ResourceEntity resource) {
+        if (resource.getImages() == null || resource.getImages().isEmpty()) {
+            return List.of();
+        }
+
+        return resource.getImages().stream()
+            .sorted(Comparator.comparingInt(image -> image.getDisplayOrder() == null ? 0 : image.getDisplayOrder()))
+            .map(image -> new ResourceImageDetails(
+                image.getImageUrl(),
+                image.isPrimary(),
+                image.getDisplayOrder() == null ? 0 : image.getDisplayOrder()
+            ))
+            .toList();
     }
 }
