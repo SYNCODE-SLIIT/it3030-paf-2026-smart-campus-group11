@@ -238,6 +238,7 @@ export function AuthProvider({
       provider: 'azure',
       options: {
         redirectTo: redirectUrl.toString(),
+        scopes: 'openid profile email',
         queryParams: {
           prompt: 'select_account',
         },
