@@ -312,47 +312,41 @@ function AuthWelcomeContent() {
   }
 
   return (
-    <div
-      style={{
-        minHeight: '100dvh',
-        position: 'relative',
-        padding: 'clamp(6px, 1.1vw, 14px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflowX: 'hidden',
-        overflowY: 'auto',
-        background:
-          'radial-gradient(circle at 8% 10%, rgba(238,202,68,.14), transparent 30%), radial-gradient(circle at 92% 92%, rgba(70,66,55,.32), transparent 28%), linear-gradient(180deg, #121212 0%, #161514 100%)',
-      }}
-    >
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          inset: '10% auto auto 6%',
-          width: 340,
-          height: 340,
-          borderRadius: '50%',
-          background: 'rgba(238,202,68,.11)',
-          filter: 'blur(92px)',
-          pointerEvents: 'none',
-        }}
-      />
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          inset: 'auto 3% 8% auto',
-          width: 340,
-          height: 340,
-          borderRadius: '50%',
-          background: 'rgba(72,68,60,.35)',
-          filter: 'blur(100px)',
-          pointerEvents: 'none',
-        }}
-      />
+    <div className="welcome-page">
+      <div aria-hidden="true" className="welcome-page-glow welcome-page-glow-left" />
+      <div aria-hidden="true" className="welcome-page-glow welcome-page-glow-right" />
       <style>{`
+        .welcome-page {
+          min-height: 100dvh;
+          position: relative;
+          padding: clamp(6px, 1.1vw, 14px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow-x: hidden;
+          overflow-y: auto;
+          background:
+            radial-gradient(circle at 8% 10%, rgba(238,202,68,.14), transparent 30%),
+            radial-gradient(circle at 92% 92%, rgba(70,66,55,.32), transparent 28%),
+            linear-gradient(180deg, #121212 0%, #161514 100%);
+        }
+        .welcome-page-glow {
+          position: absolute;
+          width: 340px;
+          height: 340px;
+          border-radius: 50%;
+          pointer-events: none;
+        }
+        .welcome-page-glow-left {
+          inset: 10% auto auto 6%;
+          background: rgba(238,202,68,.11);
+          filter: blur(92px);
+        }
+        .welcome-page-glow-right {
+          inset: auto 3% 8% auto;
+          background: rgba(72,68,60,.35);
+          filter: blur(100px);
+        }
         .welcome-auth-frame {
           width: min(100%, 1000px);
           display: grid;
@@ -505,6 +499,57 @@ function AuthWelcomeContent() {
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 10px;
         }
+        @media (prefers-color-scheme: light) {
+          .welcome-page {
+            background:
+              radial-gradient(circle at 8% 10%, rgba(238,202,68,.18), transparent 32%),
+              radial-gradient(circle at 92% 92%, rgba(171,167,156,.2), transparent 30%),
+              linear-gradient(180deg, #f8f6f0 0%, #f3f1ea 100%);
+          }
+          .welcome-page-glow-left {
+            background: rgba(238,202,68,.14);
+          }
+          .welcome-page-glow-right {
+            background: rgba(126,123,114,.24);
+          }
+          .welcome-auth-frame {
+            border: 1px solid rgba(20,18,12,.08);
+            background: rgba(255,255,255,.86);
+            box-shadow: 0 16px 38px rgba(20,18,12,.18);
+          }
+          .welcome-auth-media {
+            background-image: linear-gradient(to top, rgba(250,249,246,.84), rgba(250,249,246,.2)), url("https://lh3.googleusercontent.com/aida-public/AB6AXuDnT0tV9Fe6bH-VywONGR08nUjMNWDUoxZhHI3B6CeJRXPS2uxlKuQ560IzVfcbO7s5eUpOX9msH72XJXKRrtHfdmI7MiroC0h-67ya4UyqsYiiKOsFFawAra6W-lgsN0pN_vNgc8xDKq1uXJujhtN0L2re700rN27pO1EMIG0qi3cArdjq2gyGgHKCkAaDdt6Q1uSwlokgufna7MbKiQ31-hTMwBnOhaNQBL6RJbKbtrJ6yj_8RFyX3TP_-7qV_Wqonz1sWnOjIgI");
+            filter: grayscale(.02) contrast(1.01);
+          }
+          .welcome-auth-media-copy h2 {
+            color: var(--yellow-700);
+          }
+          .welcome-auth-media-copy p {
+            color: var(--text-body);
+          }
+          .welcome-auth-panel::-webkit-scrollbar-thumb {
+            background: rgba(20,18,12,.18);
+          }
+          .welcome-banner {
+            border-color: rgba(20,164,87,.26);
+            background: rgba(20,164,87,.12);
+            color: #0a5e30;
+          }
+          .welcome-banner.warning {
+            border-color: rgba(176,140,20,.36);
+            background: rgba(238,202,68,.18);
+            color: #5b4408;
+          }
+          .welcome-divider span {
+            background: rgba(20,18,12,.1);
+          }
+          .welcome-terms {
+            color: var(--text-body);
+          }
+          .welcome-terms a {
+            color: var(--yellow-700);
+          }
+        }
         @media (max-height: 850px) {
           .welcome-auth-frame {
             height: clamp(520px, 72vh, 600px);
@@ -578,7 +623,7 @@ function AuthWelcomeContent() {
             </div>
             <h2>Elevate Your Institution</h2>
             <p>
-              Access your institution's central hub. Complete your credentials to enter the next generation of university management.
+              Access your institution&apos;s central hub. Complete your credentials to enter the next generation of university management.
             </p>
           </div>
         </section>
@@ -649,9 +694,9 @@ function AuthWelcomeContent() {
                   void handleGoogleSignIn();
                 }}
                 style={{
-                  background: 'var(--neutral-900)',
-                  color: '#f8f8f8',
-                  border: '1px solid var(--neutral-700)',
+                  background: 'var(--surface)',
+                  color: 'var(--text-h)',
+                  border: '1px solid var(--border-strong)',
                   textTransform: 'none',
                   letterSpacing: '0.01em',
                 }}
@@ -668,9 +713,9 @@ function AuthWelcomeContent() {
                   void handleMicrosoftSignIn();
                 }}
                 style={{
-                  background: 'var(--neutral-900)',
-                  color: '#f8f8f8',
-                  border: '1px solid var(--neutral-700)',
+                  background: 'var(--surface)',
+                  color: 'var(--text-h)',
+                  border: '1px solid var(--border-strong)',
                   textTransform: 'none',
                   letterSpacing: '0.01em',
                 }}
