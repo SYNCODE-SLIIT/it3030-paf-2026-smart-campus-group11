@@ -7,8 +7,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { UserIdentityCell } from '@/components/screens/admin/UserIdentityCell';
 import { Alert, Button, Card, Chip, Skeleton } from '@/components/ui';
-import { getErrorMessage, listUsers } from '@/lib/api-client';
-import type { UserResponse } from '@/lib/api-types';
+import { getErrorMessage, listAuditLogs, listUsers } from '@/lib/api-client';
+import type { AuditLogResponse, UserResponse } from '@/lib/api-types';
 import {
   getAccountStatusChipColor,
   getAccountStatusLabel,
@@ -32,6 +32,30 @@ function formatDate(dateStr: string | null) {
 
 function avatarInitials(user: UserResponse) {
   return user.userType === 'MANAGER' ? getManagerRoleInitials(user.managerRole) : getUserAvatarInitials(user);
+}
+
+function auditActionLabel(action: AuditLogResponse['action']) {
+  return action.replaceAll('_', ' ');
+}
+
+function relativeTime(iso: string) {
+  const timestamp = new Date(iso).getTime();
+  if (Number.isNaN(timestamp)) return 'Unknown';
+
+  const diffMs = timestamp - Date.now();
+  const absMs = Math.abs(diffMs);
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+  const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+
+  if (absMs < hour) {
+    return rtf.format(Math.round(diffMs / minute), 'minute');
+  }
+  if (absMs < day) {
+    return rtf.format(Math.round(diffMs / hour), 'hour');
+  }
+  return rtf.format(Math.round(diffMs / day), 'day');
 }
 
 function DashboardMetric({
@@ -87,8 +111,10 @@ export function AdminDashboardScreen() {
   const { session } = useAuth();
   const accessToken = session?.access_token ?? null;
   const [users, setUsers] = React.useState<UserResponse[]>([]);
+  const [recentActivity, setRecentActivity] = React.useState<AuditLogResponse[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [activityError, setActivityError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!accessToken) {
@@ -103,11 +129,35 @@ export function AdminDashboardScreen() {
     async function loadUsers() {
       setLoading(true);
       setError(null);
+      setActivityError(null);
+
       try {
-        const nextUsers = await listUsers(token);
-        if (!cancelled) setUsers(nextUsers);
+        const [usersResult, activityResult] = await Promise.allSettled([
+          listUsers(token),
+          listAuditLogs(token, { page: 0, size: 5 }),
+        ]);
+
+        if (cancelled) {
+          return;
+        }
+
+        if (usersResult.status === 'fulfilled') {
+          setUsers(usersResult.value);
+        } else {
+          setUsers([]);
+          setError(getErrorMessage(usersResult.reason, 'We could not load the dashboard.'));
+        }
+
+        if (activityResult.status === 'fulfilled') {
+          setRecentActivity(activityResult.value.items);
+        } else {
+          setRecentActivity([]);
+          setActivityError(getErrorMessage(activityResult.reason, 'Recent activity is temporarily unavailable.'));
+        }
       } catch (loadError) {
-        if (!cancelled) setError(getErrorMessage(loadError, 'We could not load the dashboard.'));
+        if (!cancelled) {
+          setError(getErrorMessage(loadError, 'We could not load the dashboard.'));
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -330,6 +380,57 @@ export function AdminDashboardScreen() {
                   ))
                 )}
               </div>
+            </div>
+          </Card>
+
+          <Card>
+            <div style={{ display: 'grid', gap: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <SectionTitle title="Recent Activity" caption="Latest admin lifecycle actions." />
+                <Button variant="ghost" size="xs" onClick={() => router.push('/admin/audit-log')}>
+                  View All
+                </Button>
+              </div>
+
+              {activityError && (
+                <Alert variant="warning" title="Activity unavailable">
+                  {activityError}
+                </Alert>
+              )}
+
+              {!activityError && recentActivity.length === 0 && (
+                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 13 }}>No recent activity found.</p>
+              )}
+
+              {!activityError && recentActivity.length > 0 && (
+                <div style={{ display: 'grid', gap: 10 }}>
+                  {recentActivity.map((entry) => (
+                    <div
+                      key={entry.id}
+                      style={{
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-md)',
+                        background: 'var(--surface-2)',
+                        padding: '11px 12px',
+                        display: 'grid',
+                        gap: 6,
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <Chip color="glass" dot>
+                          {auditActionLabel(entry.action)}
+                        </Chip>
+                        <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{relativeTime(entry.createdAt)}</span>
+                      </div>
+                      <p style={{ margin: 0, color: 'var(--text-body)', fontSize: 12.5, lineHeight: 1.45 }}>
+                        <strong style={{ color: 'var(--text-h)', fontWeight: 700 }}>{entry.performedByEmail}</strong>
+                        {' acted on '}
+                        <strong style={{ color: 'var(--text-h)', fontWeight: 700 }}>{entry.targetUserEmail}</strong>
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </Card>
         </>

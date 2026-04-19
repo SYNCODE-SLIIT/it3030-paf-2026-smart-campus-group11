@@ -8,6 +8,7 @@ import {
   Calendar,
   FileText,
   GraduationCap,
+  History,
   KeyRound,
   LayoutDashboard,
   LogOut,
@@ -128,6 +129,12 @@ function getDefaultSections(workspace: Exclude<WorkspaceKind, 'auto'>, user?: Us
               label: 'Reports',
               icon: FileText,
               href: '/admin/reports',
+              allowedUserTypes: ['ADMIN'],
+            },
+            {
+              label: 'Audit Log',
+              icon: History,
+              href: '/admin/audit-log',
               allowedUserTypes: ['ADMIN'],
             },
             {

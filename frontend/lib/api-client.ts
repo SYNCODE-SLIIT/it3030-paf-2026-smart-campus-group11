@@ -1,4 +1,6 @@
 import {
+  type AuditLogFilters,
+  type AuditLogPageResponse,
   type AccountStatus,
   type AddCommentRequest,
   type AssignTicketRequest,
@@ -345,6 +347,51 @@ export async function deleteUser(accessToken: string, userId: string) {
     method: 'DELETE',
     accessToken,
   });
+}
+
+export async function listAuditLogs(accessToken: string, filters: AuditLogFilters = {}) {
+  const params = new URLSearchParams();
+
+  if (filters.action) {
+    params.set('action', filters.action);
+  }
+  if (filters.performedById) {
+    params.set('performedById', filters.performedById);
+  }
+  if (filters.from) {
+    params.set('from', filters.from);
+  }
+  if (filters.to) {
+    params.set('to', filters.to);
+  }
+  if (filters.page !== undefined) {
+    params.set('page', String(filters.page));
+  }
+  if (filters.size !== undefined) {
+    params.set('size', String(filters.size));
+  }
+
+  const query = params.toString();
+  return request<AuditLogPageResponse>(`/api/admin/audit-logs${query ? `?${query}` : ''}`, {
+    accessToken,
+  });
+}
+
+export async function getUserAuditLogs(accessToken: string, userId: string, filters: AuditLogFilters = {}) {
+  const params = new URLSearchParams();
+
+  if (filters.page !== undefined) {
+    params.set('page', String(filters.page));
+  }
+  if (filters.size !== undefined) {
+    params.set('size', String(filters.size));
+  }
+
+  const query = params.toString();
+  return request<AuditLogPageResponse>(
+    `/api/admin/audit-logs/user/${encodeURIComponent(userId)}${query ? `?${query}` : ''}`,
+    { accessToken },
+  );
 }
 
 export async function getStudentOnboarding(accessToken: string) {

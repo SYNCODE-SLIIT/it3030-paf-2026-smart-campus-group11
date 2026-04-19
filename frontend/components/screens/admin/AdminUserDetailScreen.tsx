@@ -5,18 +5,20 @@ import { AlertTriangle, ArrowLeft, Copy, Edit3, Mail, Save, Trash2, X } from 'lu
 import { useRouter } from 'next/navigation';
 
 import { useAuth } from '@/components/providers/AuthProvider';
+import { AuditLogTimeline } from '@/components/screens/admin/AuditLogTimeline';
 import { ProfileFields } from '@/components/screens/admin/ProfileFields';
 import { RoleRadioGroup } from '@/components/screens/admin/RoleRadioGroup';
 import { Alert, Avatar, Button, Card, Chip, Divider, Input, Select, Skeleton } from '@/components/ui';
 import {
   deleteUser,
+  getUserAuditLogs,
   getErrorMessage,
   getUser,
   replaceManagerRole,
   resendInvite,
   updateUser,
 } from '@/lib/api-client';
-import type { AccountStatus, ManagerRole, UpdateUserRequest, UserResponse } from '@/lib/api-types';
+import type { AccountStatus, AuditLogResponse, ManagerRole, UpdateUserRequest, UserResponse } from '@/lib/api-types';
 import {
   createEmptyAdminForm,
   createEmptyFacultyForm,
@@ -66,6 +68,8 @@ const accountStatusOptions: Array<{ value: AccountStatus; label: string }> = [
   { value: 'ACTIVE', label: 'Active' },
   { value: 'SUSPENDED', label: 'Suspended' },
 ];
+
+const ACTIVITY_PAGE_SIZE = 10;
 
 function formatDateTime(dateStr: string | null) {
   if (!dateStr) return 'Never';
@@ -311,6 +315,12 @@ export function AdminUserDetailScreen({ userId }: { userId: string }) {
   const [isResending, startResendTransition] = React.useTransition();
   const [isCopying, startCopyTransition] = React.useTransition();
   const [isDeleting, startDeleteTransition] = React.useTransition();
+  const [activity, setActivity] = React.useState<AuditLogResponse[]>([]);
+  const [activityLoading, setActivityLoading] = React.useState(false);
+  const [activityError, setActivityError] = React.useState<string | null>(null);
+  const [activityPage, setActivityPage] = React.useState(0);
+  const [activityHasNext, setActivityHasNext] = React.useState(false);
+  const [expandedActivityIds, setExpandedActivityIds] = React.useState<Set<string>>(new Set());
 
   const loadUser = React.useCallback(async () => {
     if (!accessToken) {
@@ -335,6 +345,50 @@ export function AdminUserDetailScreen({ userId }: { userId: string }) {
   React.useEffect(() => {
     void loadUser();
   }, [loadUser]);
+
+  const loadActivity = React.useCallback(async (nextPage = 0, append = false) => {
+    if (!accessToken) {
+      setActivityLoading(false);
+      setActivityError('The admin session is unavailable. Please sign in again.');
+      return;
+    }
+
+    if (!append) {
+      setActivityLoading(true);
+    }
+
+    setActivityError(null);
+
+    try {
+      const response = await getUserAuditLogs(accessToken, userId, {
+        page: nextPage,
+        size: ACTIVITY_PAGE_SIZE,
+      });
+
+      setActivity((current) => (append ? [...current, ...response.items] : response.items));
+      setActivityPage(response.page);
+      setActivityHasNext(response.hasNext);
+
+      if (!append) {
+        setExpandedActivityIds(new Set());
+      }
+    } catch (activityLoadError) {
+      setActivityError(getErrorMessage(activityLoadError, 'We could not load this user\'s activity history.'));
+      if (!append) {
+        setActivity([]);
+        setActivityPage(0);
+        setActivityHasNext(false);
+      }
+    } finally {
+      if (!append) {
+        setActivityLoading(false);
+      }
+    }
+  }, [accessToken, userId]);
+
+  React.useEffect(() => {
+    void loadActivity(0, false);
+  }, [loadActivity]);
 
   function syncFormState(nextUser: UserResponse) {
     setAccountStatus(nextUser.accountStatus);
@@ -386,6 +440,7 @@ export function AdminUserDetailScreen({ userId }: { userId: string }) {
         await resendInvite(accessToken, user.id);
         const refreshed = await getUser(accessToken, user.id);
         setUser(refreshed);
+        void loadActivity(0, false);
         setNotice({ variant: 'success', title: 'Access link generated', message: 'A fresh access link is ready.' });
       } catch (error) {
         setNotice({ variant: 'error', title: 'Link generation failed', message: getErrorMessage(error, 'We could not generate a new access link.') });
@@ -429,6 +484,7 @@ export function AdminUserDetailScreen({ userId }: { userId: string }) {
         }
 
         setUser(updated);
+        void loadActivity(0, false);
         setIsEditing(false);
         setNotice({ variant: 'success', title: 'Saved', message: 'User profile and access details were updated.' });
       } catch (error) {
@@ -458,6 +514,18 @@ export function AdminUserDetailScreen({ userId }: { userId: string }) {
       } finally {
         setConfirmAction(null);
       }
+    });
+  }
+
+  function toggleActivityDetails(id: string) {
+    setExpandedActivityIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
     });
   }
 
@@ -849,6 +917,57 @@ export function AdminUserDetailScreen({ userId }: { userId: string }) {
             ))}
           </div>
         )}
+      </Card>
+
+      <Card>
+        <div style={{ display: 'grid', gap: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <div>
+              <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 850, color: 'var(--text-h)' }}>
+                Activity History
+              </p>
+              <p style={{ margin: '5px 0 0', color: 'var(--text-muted)', fontSize: 13 }}>
+                Timeline of admin actions recorded for this account.
+              </p>
+            </div>
+            <Button variant="ghost" size="xs" onClick={() => router.push('/admin/audit-log')}>
+              View Full Audit Log
+            </Button>
+          </div>
+
+          {activityError && (
+            <Alert variant="warning" title="Activity unavailable">
+              {activityError}
+            </Alert>
+          )}
+
+          {activityLoading ? (
+            <div style={{ display: 'grid', gap: 10 }}>
+              <Skeleton variant="rect" height={84} />
+              <Skeleton variant="rect" height={84} />
+            </div>
+          ) : (
+            <AuditLogTimeline
+              logs={activity}
+              expandedIds={expandedActivityIds}
+              onToggleDetails={toggleActivityDetails}
+              emptyMessage="No recorded activity for this user yet."
+            />
+          )}
+
+          {!activityLoading && !activityError && activityHasNext && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Page {activityPage + 1}</span>
+              <Button
+                variant="subtle"
+                size="xs"
+                onClick={() => { void loadActivity(activityPage + 1, true); }}
+              >
+                Load More
+              </Button>
+            </div>
+          )}
+        </div>
       </Card>
     </div>
   );
