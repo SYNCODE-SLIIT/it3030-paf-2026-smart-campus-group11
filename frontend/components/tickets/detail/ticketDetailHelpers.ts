@@ -1,3 +1,4 @@
+import type React from 'react';
 import type { TicketPriority, TicketStatus, UserResponse } from '@/lib/api-types';
 
 export const CATEGORY_LABELS: Record<string, string> = {
@@ -97,4 +98,20 @@ export function getInitials(name: string): string {
 
 export function isImageAttachment(fileName: string, fileType: string): boolean {
   return fileType.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg|avif)$/i.test(fileName);
+}
+
+export const SEC_HD_LABEL: React.CSSProperties = {
+  fontFamily: 'var(--font-mono)',
+  fontSize: 9,
+  fontWeight: 700,
+  letterSpacing: '.2em',
+  textTransform: 'uppercase',
+  color: 'var(--text-muted)',
+};
+
+export function splitDateTime(iso: string): [string, string] {
+  const full = formatDateTime(iso);
+  const lastComma = full.lastIndexOf(',');
+  if (lastComma === -1) return [full, ''];
+  return [full.slice(0, lastComma), full.slice(lastComma + 1).trim()];
 }

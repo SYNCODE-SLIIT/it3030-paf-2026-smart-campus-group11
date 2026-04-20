@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
 import { useAuth } from '@/components/providers/AuthProvider';
-import { Alert, Button, Card, Input, Select } from '@/components/ui';
+import { Alert, Button, Input, Select } from '@/components/ui';
 import {
   addTicketComment,
   deleteTicketAttachment,
@@ -25,7 +25,6 @@ import type {
   TicketStatusHistoryResponse,
 } from '@/lib/api-types';
 import {
-  StatusProgressCard,
   TicketAttachmentsCard,
   TicketCommentsCard,
   TicketDescriptionCard,
@@ -33,7 +32,7 @@ import {
   TicketHeaderCard,
   TicketHistoryCard,
 } from '@/components/tickets/detail';
-import { PRIORITY_LABELS } from '@/components/tickets/detail/ticketDetailHelpers';
+import { PRIORITY_LABELS, SEC_HD_LABEL } from '@/components/tickets/detail/ticketDetailHelpers';
 
 type NoticeState = {
   variant: 'error' | 'success' | 'warning' | 'info' | 'neutral';
@@ -196,14 +195,28 @@ export function StudentTicketDetailScreen({ ticketRef }: { ticketRef: string }) 
         </Alert>
       )}
 
+      {/* Hero — full width */}
+      <div style={{ marginBottom: 20 }}>
+        <TicketHeaderCard ticket={ticket} />
+      </div>
+
+      {/* Two-column grid */}
       <div
         className="ticket-detail-grid"
         style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 300px', gap: 20, alignItems: 'start' }}
       >
         {/* Main column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <TicketHeaderCard ticket={ticket} />
-          <TicketDetailsCard ticket={ticket} />
+          {(ticket.resolutionNotes || ticket.rejectionReason) && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {ticket.resolutionNotes && (
+                <Alert variant="success" title="Resolution Notes">{ticket.resolutionNotes}</Alert>
+              )}
+              {ticket.rejectionReason && (
+                <Alert variant="error" title="Ticket Rejected">{ticket.rejectionReason}</Alert>
+              )}
+            </div>
+          )}
           <TicketDescriptionCard description={ticket.description} />
           <TicketCommentsCard
             comments={comments}
@@ -225,39 +238,50 @@ export function StudentTicketDetailScreen({ ticketRef }: { ticketRef: string }) 
             onUpload={handleUpload}
             onDelete={handleDeleteAttachment}
           />
-          <TicketHistoryCard history={history} />
         </div>
 
         {/* Sidebar */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <StatusProgressCard ticket={ticket} />
+          <TicketDetailsCard ticket={ticket} />
+          <TicketHistoryCard history={history} />
+
           {canModify && (
-            <Card>
-              <p style={{ margin: '0 0 14px', fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700, color: 'var(--text-h)' }}>
-                Update Ticket
-              </p>
-              <form onSubmit={handleEdit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <Select
-                  id="edit-priority"
-                  name="edit-priority"
-                  label="Priority"
-                  value={editForm.priority}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, priority: e.target.value as TicketPriority }))}
-                  options={(Object.entries(PRIORITY_LABELS) as [TicketPriority, string][]).map(([value, label]) => ({ value, label }))}
-                />
-                <Input
-                  id="edit-contact"
-                  name="edit-contact"
-                  label="Contact Note"
-                  placeholder="Best way to reach you"
-                  value={editForm.contactNote}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, contactNote: e.target.value }))}
-                />
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <Button type="submit" loading={editSubmitting} size="sm">Save Changes</Button>
-                </div>
-              </form>
-            </Card>
+            <div
+              style={{
+                background: 'var(--surface)',
+                border: '1px solid var(--border-strong)',
+                borderRadius: 'var(--radius-xl)',
+                boxShadow: 'var(--card-shadow)',
+                overflow: 'hidden',
+              }}
+            >
+              <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--border)' }}>
+                <span style={SEC_HD_LABEL}>Edit Ticket</span>
+              </div>
+              <div style={{ padding: '16px 20px' }}>
+                <form onSubmit={handleEdit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <Select
+                    id="edit-priority"
+                    name="edit-priority"
+                    label="Priority"
+                    value={editForm.priority}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, priority: e.target.value as TicketPriority }))}
+                    options={(Object.entries(PRIORITY_LABELS) as [TicketPriority, string][]).map(([value, label]) => ({ value, label }))}
+                  />
+                  <Input
+                    id="edit-contact"
+                    name="edit-contact"
+                    label="Contact Note"
+                    placeholder="Best way to reach you"
+                    value={editForm.contactNote}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, contactNote: e.target.value }))}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <Button type="submit" loading={editSubmitting} size="sm">Save Changes</Button>
+                  </div>
+                </form>
+              </div>
+            </div>
           )}
         </div>
       </div>

@@ -1,7 +1,7 @@
 import React from 'react';
-import { Alert, Button, Card, Textarea } from '@/components/ui';
+import { Alert, Button, Textarea } from '@/components/ui';
 import type { TicketCommentResponse } from '@/lib/api-types';
-import { formatDateTime } from './ticketDetailHelpers';
+import { SEC_HD_LABEL, formatDateTime } from './ticketDetailHelpers';
 
 interface TicketCommentsCardProps {
   comments: TicketCommentResponse[];
@@ -14,13 +14,24 @@ interface TicketCommentsCardProps {
   formIdPrefix: string;
 }
 
-const SECTION_LABEL: React.CSSProperties = {
-  margin: '0 0 14px',
-  fontFamily: 'var(--font-display)',
-  fontSize: 13,
-  fontWeight: 700,
-  color: 'var(--text-h)',
-};
+function CountPill({ count }: { count: number }) {
+  return (
+    <span
+      style={{
+        fontFamily: 'var(--font-mono)',
+        fontSize: 9,
+        fontWeight: 700,
+        color: 'var(--text-muted)',
+        background: 'var(--surface-2)',
+        border: '1px solid var(--border)',
+        borderRadius: 999,
+        padding: '2px 7px',
+      }}
+    >
+      {count}
+    </span>
+  );
+}
 
 export function TicketCommentsCard({
   comments,
@@ -33,15 +44,29 @@ export function TicketCommentsCard({
   formIdPrefix,
 }: TicketCommentsCardProps) {
   return (
-    <Card>
-      <p style={SECTION_LABEL}>
-        Comments
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', fontWeight: 400, marginLeft: 8 }}>
-          {comments.length}
-        </span>
-      </p>
+    <div
+      style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--border-strong)',
+        borderRadius: 'var(--radius-xl)',
+        boxShadow: 'var(--card-shadow)',
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          padding: '12px 20px',
+          borderBottom: '1px solid var(--border)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}
+      >
+        <span style={SEC_HD_LABEL}>Comments</span>
+        <CountPill count={comments.length} />
+      </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         {!canComment && commentLockReason && (
           <Alert variant="info" title="Comments locked">{commentLockReason}</Alert>
         )}
@@ -53,7 +78,12 @@ export function TicketCommentsCard({
         {comments.map((comment) => (
           <div
             key={comment.id}
-            style={{ padding: 14, background: 'var(--surface-2)', borderRadius: 8, border: '1px solid var(--border)' }}
+            style={{
+              padding: 14,
+              background: 'var(--surface-2)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border)',
+            }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>
@@ -93,6 +123,6 @@ export function TicketCommentsCard({
           </form>
         )}
       </div>
-    </Card>
+    </div>
   );
 }

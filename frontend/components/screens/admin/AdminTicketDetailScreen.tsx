@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
 import { useAuth } from '@/components/providers/AuthProvider';
-import { Alert, Button, Card, Dialog, Textarea } from '@/components/ui';
+import { Alert, Button, Dialog, Textarea } from '@/components/ui';
 import {
   addTicketComment,
   assignTicket,
@@ -27,7 +27,7 @@ import type {
 } from '@/lib/api-types';
 import {
   AssignmentDropdownButton,
-  StatusProgressCard,
+  TicketActionsCard,
   TicketAttachmentsCard,
   TicketCommentsCard,
   TicketDescriptionCard,
@@ -179,34 +179,6 @@ export function AdminTicketDetailScreen({ ticketRef }: { ticketRef: string }) {
 
   const adminName = appUser?.adminProfile?.fullName ?? appUser?.email;
 
-  const actionSlot = canManageStatus ? (
-    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-      {ticket.status === 'OPEN' && (
-        <Button size="sm" onClick={() => { void handleStatusChange('IN_PROGRESS'); }} loading={statusSubmitting}>
-          Accept Ticket
-        </Button>
-      )}
-      {ticket.status === 'IN_PROGRESS' && (
-        <>
-          <Button size="sm" onClick={() => setResolveModalOpen(true)} loading={statusSubmitting}>
-            Mark Resolved
-          </Button>
-          <Button variant="subtle" size="sm" onClick={() => { void handleStatusChange('CLOSED'); }} loading={statusSubmitting}>
-            Close Ticket
-          </Button>
-          <Button variant="danger" size="sm" onClick={() => setRejectModalOpen(true)} loading={statusSubmitting}>
-            Reject
-          </Button>
-        </>
-      )}
-      {ticket.status === 'RESOLVED' && (
-        <Button variant="subtle" size="sm" onClick={() => { void handleStatusChange('CLOSED'); }} loading={statusSubmitting}>
-          Close Ticket
-        </Button>
-      )}
-    </div>
-  ) : null;
-
   return (
     <>
       <style>{`@media(max-width:960px){.ticket-detail-grid{grid-template-columns:1fr!important}}`}</style>
@@ -221,27 +193,40 @@ export function AdminTicketDetailScreen({ ticketRef }: { ticketRef: string }) {
         </Alert>
       )}
 
+      {/* Hero — full width */}
+      <div style={{ marginBottom: 20 }}>
+        <TicketHeaderCard
+          ticket={ticket}
+          assignmentSlot={
+            <AssignmentDropdownButton
+              ticket={ticket}
+              managers={managers}
+              appUserId={appUser?.id ?? ''}
+              appUserName={adminName}
+              assigning={assigning}
+              onAssign={handleAssignSelect}
+            />
+          }
+        />
+      </div>
+
+      {/* Two-column grid */}
       <div
         className="ticket-detail-grid"
         style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 300px', gap: 20, alignItems: 'start' }}
       >
         {/* Main column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <TicketHeaderCard
-            ticket={ticket}
-            actionSlot={actionSlot}
-            assignmentSlot={
-              <AssignmentDropdownButton
-                ticket={ticket}
-                managers={managers}
-                appUserId={appUser?.id ?? ''}
-                appUserName={adminName}
-                assigning={assigning}
-                onAssign={handleAssignSelect}
-              />
-            }
-          />
-          <TicketDetailsCard ticket={ticket} />
+          {(ticket.resolutionNotes || ticket.rejectionReason) && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {ticket.resolutionNotes && (
+                <Alert variant="success" title="Resolution Notes">{ticket.resolutionNotes}</Alert>
+              )}
+              {ticket.rejectionReason && (
+                <Alert variant="error" title="Ticket Rejected">{ticket.rejectionReason}</Alert>
+              )}
+            </div>
+          )}
           <TicketDescriptionCard description={ticket.description} />
           <TicketCommentsCard
             comments={comments}
@@ -254,12 +239,22 @@ export function AdminTicketDetailScreen({ ticketRef }: { ticketRef: string }) {
             formIdPrefix="admin"
           />
           <TicketAttachmentsCard attachments={attachments} />
-          <TicketHistoryCard history={history} />
         </div>
 
         {/* Sidebar */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <StatusProgressCard ticket={ticket} />
+          {canManageStatus && (
+            <TicketActionsCard
+              ticket={ticket}
+              statusSubmitting={statusSubmitting}
+              onAccept={() => { void handleStatusChange('IN_PROGRESS'); }}
+              onResolveOpen={() => setResolveModalOpen(true)}
+              onClose={() => { void handleStatusChange('CLOSED'); }}
+              onRejectOpen={() => setRejectModalOpen(true)}
+            />
+          )}
+          <TicketDetailsCard ticket={ticket} />
+          <TicketHistoryCard history={history} />
         </div>
       </div>
 

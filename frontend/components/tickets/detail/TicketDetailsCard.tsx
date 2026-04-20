@@ -1,72 +1,178 @@
 import React from 'react';
-import { Alert, Card } from '@/components/ui';
+import { Avatar } from '@/components/ui';
 import type { TicketResponse } from '@/lib/api-types';
-import { formatDateTime } from './ticketDetailHelpers';
+import { SEC_HD_LABEL, getInitials, splitDateTime } from './ticketDetailHelpers';
 
 interface TicketDetailsCardProps {
   ticket: TicketResponse;
 }
 
-const LABEL_STYLE: React.CSSProperties = {
-  fontSize: 10,
-  fontFamily: 'var(--font-mono)',
-  letterSpacing: '.08em',
-  textTransform: 'uppercase',
-  color: 'var(--text-muted)',
-  fontWeight: 600,
-};
-
-const VALUE_STYLE: React.CSSProperties = {
-  fontSize: 13,
-  color: 'var(--text-body)',
-};
-
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: '6px 12px', alignItems: 'baseline' }}>
-      <span style={LABEL_STYLE}>{label}</span>
-      <span style={VALUE_STYLE}>{children}</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
+      <span
+        style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: 8.5,
+          fontWeight: 700,
+          letterSpacing: '.18em',
+          textTransform: 'uppercase',
+          color: 'var(--text-muted)',
+        }}
+      >
+        {label}
+      </span>
+      <span style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--text-body)' }}>
+        {children}
+      </span>
     </div>
   );
 }
 
-const SECTION_LABEL: React.CSSProperties = {
-  margin: '0 0 14px',
-  fontFamily: 'var(--font-display)',
-  fontSize: 13,
-  fontWeight: 700,
-  color: 'var(--text-h)',
-};
+function DateValue({ iso }: { iso: string }) {
+  const [date, time] = splitDateTime(iso);
+  return (
+    <span style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+      <span style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--text-body)' }}>{date}</span>
+      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--text-muted)' }}>{time}</span>
+    </span>
+  );
+}
 
 export function TicketDetailsCard({ ticket }: TicketDetailsCardProps) {
   return (
-    <Card>
-      <p style={SECTION_LABEL}>Details</p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <Row label="Reporter">
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{ticket.reportedByEmail}</span>
-        </Row>
-        <Row label="Opened">{formatDateTime(ticket.createdAt)}</Row>
-        <Row label="Last Updated">{formatDateTime(ticket.updatedAt)}</Row>
-        {ticket.resolvedAt && <Row label="Resolved">{formatDateTime(ticket.resolvedAt)}</Row>}
-        {ticket.closedAt && <Row label="Closed">{formatDateTime(ticket.closedAt)}</Row>}
-        {ticket.contactNote && (
-          <Row label="Contact Note">
-            <em style={{ color: 'var(--text-body)' }}>{ticket.contactNote}</em>
-          </Row>
-        )}
+    <div
+      style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--border-strong)',
+        borderRadius: 'var(--radius-xl)',
+        boxShadow: 'var(--card-shadow)',
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          padding: '12px 20px',
+          borderBottom: '1px solid var(--border)',
+          display: 'flex',
+          alignItems: 'center',
+        }}
+      >
+        <span style={SEC_HD_LABEL}>Details</span>
       </div>
 
-      {(ticket.resolutionNotes || ticket.rejectionReason) && (
-        <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {ticket.resolutionNotes && (
-            <Alert variant="success" title="Resolution">{ticket.resolutionNotes}</Alert>
+      <div
+        style={{
+          padding: '16px 20px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 0,
+        }}
+      >
+        {/* Assigned To */}
+        <DetailRow label="Assigned To">
+          {ticket.assignedToName ? (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Avatar size="xs" initials={getInitials(ticket.assignedToName)} />
+              <span style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--text-body)' }}>
+                {ticket.assignedToName}
+              </span>
+            </span>
+          ) : (
+            <span
+              style={{
+                display: 'inline-block',
+                border: '1.5px dashed var(--border-strong)',
+                borderRadius: 999,
+                padding: '2px 10px',
+                fontSize: 11,
+                color: 'var(--text-muted)',
+                fontStyle: 'italic',
+                width: 'fit-content',
+              }}
+            >
+              Unassigned
+            </span>
           )}
-          {ticket.rejectionReason && (
-            <Alert variant="error" title="Ticket Rejected">{ticket.rejectionReason}</Alert>
+        </DetailRow>
+
+        {/* Reporter */}
+        <div style={{ paddingTop: 12 }}>
+          <DetailRow label="Reporter">
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, wordBreak: 'break-all' }}>
+              {ticket.reportedByEmail}
+            </span>
+          </DetailRow>
+        </div>
+
+        {/* Opened */}
+        <div style={{ paddingTop: 12 }}>
+          <DetailRow label="Opened">
+            <DateValue iso={ticket.createdAt} />
+          </DetailRow>
+        </div>
+
+        {/* Last Updated */}
+        <div style={{ paddingTop: 12 }}>
+          {ticket.resolvedAt || ticket.closedAt || ticket.contactNote ? (
+            <DetailRow label="Last Updated">
+              <DateValue iso={ticket.updatedAt} />
+            </DetailRow>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <span
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 8.5,
+                  fontWeight: 700,
+                  letterSpacing: '.18em',
+                  textTransform: 'uppercase',
+                  color: 'var(--text-muted)',
+                }}
+              >
+                Last Updated
+              </span>
+              <DateValue iso={ticket.updatedAt} />
+            </div>
           )}
         </div>
-      )}
-    </Card>
+
+        {ticket.resolvedAt && (
+          <div style={{ paddingTop: 12 }}>
+            <DetailRow label="Resolved">
+              <DateValue iso={ticket.resolvedAt} />
+            </DetailRow>
+          </div>
+        )}
+
+        {ticket.closedAt && (
+          <div style={{ paddingTop: 12 }}>
+            <DetailRow label="Closed">
+              <DateValue iso={ticket.closedAt} />
+            </DetailRow>
+          </div>
+        )}
+
+        {ticket.contactNote && (
+          <div style={{ paddingTop: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <span
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 8.5,
+                  fontWeight: 700,
+                  letterSpacing: '.18em',
+                  textTransform: 'uppercase',
+                  color: 'var(--text-muted)',
+                }}
+              >
+                Contact
+              </span>
+              <em style={{ fontSize: 12.5, color: 'var(--text-body)' }}>{ticket.contactNote}</em>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

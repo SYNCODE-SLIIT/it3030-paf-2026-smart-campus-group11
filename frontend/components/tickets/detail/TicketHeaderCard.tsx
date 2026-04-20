@@ -1,97 +1,97 @@
 import React from 'react';
-import { Card, Chip } from '@/components/ui';
+import { Chip } from '@/components/ui';
 import type { TicketResponse } from '@/lib/api-types';
 import {
   CATEGORY_LABELS,
   PRIORITY_CHIP_COLOR,
   PRIORITY_LABELS,
   PRIORITY_STRIPE,
+  STATUS_DISPLAY,
   statusChipColor,
 } from './ticketDetailHelpers';
 
 interface TicketHeaderCardProps {
   ticket: TicketResponse;
-  actionSlot?: React.ReactNode;
   assignmentSlot?: React.ReactNode;
 }
 
-export function TicketHeaderCard({ ticket, actionSlot, assignmentSlot }: TicketHeaderCardProps) {
-  const hasActions = actionSlot || assignmentSlot;
-
+export function TicketHeaderCard({ ticket, assignmentSlot }: TicketHeaderCardProps) {
   return (
-    <Card>
-      {/* Priority stripe bleeds to card edges */}
+    <div
+      style={{
+        position: 'relative',
+        background: 'var(--surface)',
+        border: '1px solid var(--border-strong)',
+        borderRadius: 'var(--radius-xl)',
+        boxShadow: 'var(--card-shadow)',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Left priority stripe */}
       <div
         style={{
-          height: 4,
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: 4,
+          bottom: 0,
           background: PRIORITY_STRIPE[ticket.priority],
-          borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0',
-          margin: '-24px -24px 20px',
         }}
       />
 
-      {/* Ticket code */}
-      <p
-        style={{
-          margin: '0 0 8px',
-          fontFamily: 'var(--font-mono)',
-          fontSize: 10,
-          fontWeight: 900,
-          letterSpacing: '.32em',
-          textTransform: 'uppercase',
-          color: 'var(--text-muted)',
-        }}
-      >
-        {ticket.ticketCode}
-      </p>
-
-      {/* Title */}
-      <h1
-        style={{
-          margin: '0 0 14px',
-          fontFamily: 'var(--font-display)',
-          fontSize: 26,
-          fontWeight: 900,
-          lineHeight: 1.15,
-          color: 'var(--text-h)',
-        }}
-      >
-        {ticket.title}
-      </h1>
-
-      {/* Chips */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: hasActions ? 18 : 0 }}>
-        <Chip color={statusChipColor(ticket.status)} dot>
-          {ticket.status.replace('_', ' ')}
-        </Chip>
-        <Chip color={PRIORITY_CHIP_COLOR[ticket.priority]}>
-          {PRIORITY_LABELS[ticket.priority]}
-        </Chip>
-        <Chip color="neutral">
-          {CATEGORY_LABELS[ticket.category] ?? ticket.category}
-        </Chip>
-      </div>
-
-      {/* Actions row */}
-      {hasActions && (
+      {/* Inner content */}
+      <div style={{ padding: '20px 24px 20px 28px' }}>
         <div
           style={{
             display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            flexWrap: 'wrap',
-            paddingTop: 16,
-            borderTop: '1px solid var(--border)',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            gap: 16,
+            marginBottom: 12,
           }}
         >
-          {actionSlot}
-          {assignmentSlot && (
-            <div style={{ marginLeft: 'auto' }}>
-              {assignmentSlot}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <p
+              style={{
+                margin: 0,
+                fontFamily: 'var(--font-mono)',
+                fontSize: 10,
+                fontWeight: 900,
+                letterSpacing: '.32em',
+                textTransform: 'uppercase',
+                color: 'var(--text-muted)',
+              }}
+            >
+              {ticket.ticketCode}
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <Chip color={statusChipColor(ticket.status)} dot>
+                {STATUS_DISPLAY[ticket.status]}
+              </Chip>
+              <Chip color={PRIORITY_CHIP_COLOR[ticket.priority]}>
+                {PRIORITY_LABELS[ticket.priority]}
+              </Chip>
+              <Chip color="neutral">
+                {CATEGORY_LABELS[ticket.category] ?? ticket.category}
+              </Chip>
             </div>
-          )}
+          </div>
+          {assignmentSlot && <div style={{ flexShrink: 0 }}>{assignmentSlot}</div>}
         </div>
-      )}
-    </Card>
+
+        <h1
+          style={{
+            margin: 0,
+            fontFamily: 'var(--font-display)',
+            fontSize: 22,
+            fontWeight: 800,
+            lineHeight: 1.2,
+            color: 'var(--text-h)',
+          }}
+        >
+          {ticket.title}
+        </h1>
+      </div>
+    </div>
   );
 }

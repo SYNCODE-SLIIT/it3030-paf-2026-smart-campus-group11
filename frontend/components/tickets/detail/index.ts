@@ -1,6 +1,6 @@
 export { AssignmentDropdownButton } from './AssignmentDropdownButton';
 export { ReassignConfirmDialog } from './ReassignConfirmDialog';
-export { StatusProgressCard } from './StatusProgressCard';
+export { TicketActionsCard } from './TicketActionsCard';
 export { TicketAttachmentsCard } from './TicketAttachmentsCard';
 export { TicketCommentsCard } from './TicketCommentsCard';
 export { TicketDescriptionCard } from './TicketDescriptionCard';
