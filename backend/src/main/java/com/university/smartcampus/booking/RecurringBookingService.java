@@ -14,7 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.university.smartcampus.AppEnums.RecurrencePattern;
 import com.university.smartcampus.common.exception.BadRequestException;
-import com.university.smartcampus.common.exception.ForbiddenException;
 import com.university.smartcampus.common.exception.NotFoundException;
 import com.university.smartcampus.resource.ResourceEntity;
 import com.university.smartcampus.resource.ResourceService;
