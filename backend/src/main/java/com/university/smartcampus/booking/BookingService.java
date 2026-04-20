@@ -59,6 +59,7 @@ public class BookingService {
         Instant endTime = Objects.requireNonNull(request.endTime(), "End time is required.");
 
         bookingValidator.validateTimeRange(startTime, endTime);
+        bookingValidator.validateDuration(resource, startTime, endTime);
         bookingValidator.requireFutureStart(startTime);
         bookingValidator.ensureNoPendingOrApprovedOverlap(resource.getId(), startTime, endTime);
 

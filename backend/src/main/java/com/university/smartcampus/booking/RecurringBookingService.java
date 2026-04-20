@@ -70,6 +70,13 @@ public class RecurringBookingService {
             throw new BadRequestException("Start time must be before end time.");
         }
 
+        BookingWindow firstOccurrenceWindow = buildBookingWindow(
+            request.startDate(),
+            request.startTime(),
+            request.endTime()
+        );
+        bookingValidator.validateDuration(resource, firstOccurrenceWindow.startTime(), firstOccurrenceWindow.endTime());
+
         if (request.endDate() != null && request.startDate().isAfter(request.endDate())) {
             throw new BadRequestException("Start date must be before end date.");
         }
@@ -118,17 +125,13 @@ public class RecurringBookingService {
             LocalTime startTime = recurringBooking.getStartTime();
             LocalTime endTime = recurringBooking.getEndTime();
 
-            Instant bookingStart = current.withHour(startTime.getHour())
-                .withMinute(startTime.getMinute())
-                .withSecond(0)
-                .toInstant();
-            
-            Instant bookingEnd = current.withHour(endTime.getHour())
-                .withMinute(endTime.getMinute())
-                .withSecond(0)
-                .toInstant();
+            BookingWindow bookingWindow = buildBookingWindow(current.toInstant(), startTime, endTime);
+            Instant bookingStart = bookingWindow.startTime();
+            Instant bookingEnd = bookingWindow.endTime();
 
             try {
+                bookingValidator.validateDuration(recurringBooking.getResource(), bookingStart, bookingEnd);
+
                 // Check for conflicts
                 bookingValidator.ensureNoPendingOrApprovedOverlap(
                     recurringBooking.getResource().getId(),
@@ -210,5 +213,26 @@ public class RecurringBookingService {
             recurring.isActive(),
             recurring.getCreatedAt()
         );
+    }
+
+    private BookingWindow buildBookingWindow(Instant baseDate, LocalTime startTime, LocalTime endTime) {
+        ZonedDateTime base = ZonedDateTime.ofInstant(baseDate, ZoneId.systemDefault());
+
+        Instant bookingStart = base.withHour(startTime.getHour())
+            .withMinute(startTime.getMinute())
+            .withSecond(0)
+            .withNano(0)
+            .toInstant();
+
+        Instant bookingEnd = base.withHour(endTime.getHour())
+            .withMinute(endTime.getMinute())
+            .withSecond(0)
+            .withNano(0)
+            .toInstant();
+
+        return new BookingWindow(bookingStart, bookingEnd);
+    }
+
+    private record BookingWindow(Instant startTime, Instant endTime) {
     }
 }

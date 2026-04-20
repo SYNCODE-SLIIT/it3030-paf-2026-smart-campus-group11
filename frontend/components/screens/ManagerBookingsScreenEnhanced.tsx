@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Check, Search, X, Clock } from 'lucide-react';
+import { Check, Search, X } from 'lucide-react';
 
 import { useAuth } from '@/components/providers/AuthProvider';
 import { Alert, Button, Card, Chip, Input, Select, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Dialog, Textarea } from '@/components/ui';
@@ -19,6 +19,7 @@ import {
   rejectModification,
 } from '@/lib/api-client';
 import type { BookingResponse, BookingStatus, ResourceResponse, BookingModificationResponse } from '@/lib/api-types';
+import { getResourceCategoryLabel } from '@/lib/resource-display';
 
 type NoticeState = {
   variant: 'error' | 'success' | 'warning' | 'info' | 'neutral';
@@ -64,6 +65,14 @@ function shortId(value: string) {
   return value.length > 10 ? `${value.slice(0, 8)}...` : value;
 }
 
+function normalizeSubcategory(value: string | null | undefined) {
+  if (!value) {
+    return '';
+  }
+
+  return value.trim().replace(/[\s-]+/g, '_').toUpperCase();
+}
+
 export function ManagerBookingsScreenEnhanced() {
   const { session } = useAuth();
   const accessToken = session?.access_token ?? null;
@@ -78,6 +87,8 @@ export function ManagerBookingsScreenEnhanced() {
   const [activeTab, setActiveTab] = React.useState<TabType>('bookings');
 
   const [statusFilter, setStatusFilter] = React.useState<BookingStatus | ''>('');
+  const [categoryFilter, setCategoryFilter] = React.useState('');
+  const [subcategoryFilter, setSubcategoryFilter] = React.useState('');
   const [resourceFilter, setResourceFilter] = React.useState('');
   const [searchText, setSearchText] = React.useState('');
   const deferredSearch = React.useDeferredValue(searchText);
@@ -119,11 +130,80 @@ export function ManagerBookingsScreenEnhanced() {
     void reload();
   }, [reload]);
 
+  const resourceById = React.useMemo(
+    () =>
+      new Map(resources.map((resource) => [resource.id, resource])),
+    [resources],
+  );
+
+  const categoryOptions = React.useMemo(
+    () =>
+      Array.from(new Set(resources.map((resource) => resource.category)))
+        .sort()
+        .map((category) => ({
+          value: category,
+          label: getResourceCategoryLabel(category),
+        })),
+    [resources],
+  );
+
+  const categoryFilteredResources = React.useMemo(
+    () =>
+      categoryFilter
+        ? resources.filter((resource) => resource.category === categoryFilter)
+        : resources,
+    [categoryFilter, resources],
+  );
+
+  const subcategoryOptions = React.useMemo(
+    () =>
+      Array.from(
+        new Set(
+          categoryFilteredResources
+            .map((resource) => resource.subcategory)
+            .filter((subcategory): subcategory is string => Boolean(subcategory && subcategory.trim())),
+        ),
+      )
+        .sort((left, right) => left.localeCompare(right))
+        .map((subcategory) => ({
+          value: subcategory,
+          label: subcategory,
+        })),
+    [categoryFilteredResources],
+  );
+
+  const resourceOptions = React.useMemo(
+    () =>
+      categoryFilteredResources
+        .filter(
+          (resource) => !subcategoryFilter
+            || normalizeSubcategory(resource.subcategory) === normalizeSubcategory(subcategoryFilter),
+        )
+        .map((resource) => ({
+          value: resource.id,
+          label: `${resource.code} - ${resource.name}`,
+        })),
+    [categoryFilteredResources, subcategoryFilter],
+  );
+
   const filteredBookings = React.useMemo(() => {
     const needle = deferredSearch.trim().toLowerCase();
 
     return bookings.filter((booking) => {
+      const resource = resourceById.get(booking.resource.id);
+
       if (statusFilter && booking.status !== statusFilter) {
+        return false;
+      }
+
+      if (categoryFilter && resource?.category !== categoryFilter) {
+        return false;
+      }
+
+      if (
+        subcategoryFilter
+        && normalizeSubcategory(resource?.subcategory) !== normalizeSubcategory(subcategoryFilter)
+      ) {
         return false;
       }
 
@@ -142,7 +222,7 @@ export function ManagerBookingsScreenEnhanced() {
         || booking.requesterId.toLowerCase().includes(needle)
       );
     });
-  }, [bookings, deferredSearch, resourceFilter, statusFilter]);
+  }, [bookings, categoryFilter, deferredSearch, resourceById, resourceFilter, statusFilter, subcategoryFilter]);
 
   const pendingBookings = bookings.filter((b) => b.status === 'PENDING').length;
   const approvedBookings = bookings.filter((b) => b.status === 'APPROVED').length;
@@ -303,6 +383,14 @@ export function ManagerBookingsScreenEnhanced() {
     }
   }
 
+  function resetBookingFilters() {
+    setSearchText('');
+    setStatusFilter('');
+    setCategoryFilter('');
+    setSubcategoryFilter('');
+    setResourceFilter('');
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {/* Header */}
@@ -407,7 +495,7 @@ export function ManagerBookingsScreenEnhanced() {
           {/* Bookings Tab */}
           {activeTab === 'bookings' && (
             <Card>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 16 }}>
                 <Input
                   id="manager-booking-search"
                   name="manager-booking-search"
@@ -433,17 +521,45 @@ export function ManagerBookingsScreenEnhanced() {
                   ]}
                 />
                 <Select
+                  id="manager-booking-category"
+                  name="manager-booking-category"
+                  label="Category"
+                  value={categoryFilter}
+                  onChange={(event) => {
+                    const nextCategory = event.target.value;
+                    setCategoryFilter(nextCategory);
+                    setSubcategoryFilter('');
+                    setResourceFilter('');
+                  }}
+                  placeholder="All categories"
+                  options={categoryOptions}
+                />
+                <Select
+                  id="manager-booking-subcategory"
+                  name="manager-booking-subcategory"
+                  label="Subcategory"
+                  value={subcategoryFilter}
+                  onChange={(event) => {
+                    setSubcategoryFilter(event.target.value);
+                    setResourceFilter('');
+                  }}
+                  placeholder="All subcategories"
+                  options={subcategoryOptions}
+                />
+                <Select
                   id="manager-booking-resource"
                   name="manager-booking-resource"
                   label="Resource"
                   value={resourceFilter}
                   onChange={(event) => setResourceFilter(event.target.value)}
                   placeholder="All resources"
-                  options={resources.map((resource) => ({
-                    value: resource.id,
-                    label: `${resource.code} - ${resource.name}`,
-                  }))}
+                  options={resourceOptions}
                 />
+                <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                  <Button variant="subtle" onClick={resetBookingFilters} fullWidth>
+                    Clear Filters
+                  </Button>
+                </div>
               </div>
 
               <div style={{ overflowX: 'auto' }}>

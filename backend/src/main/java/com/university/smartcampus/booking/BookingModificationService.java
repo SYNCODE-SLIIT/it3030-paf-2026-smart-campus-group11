@@ -61,6 +61,7 @@ public class BookingModificationService {
         }
 
         bookingValidator.validateTimeRange(request.requestedStartTime(), request.requestedEndTime());
+        bookingValidator.validateDuration(booking.getResource(), request.requestedStartTime(), request.requestedEndTime());
         bookingValidator.requireFutureStart(request.requestedStartTime());
 
         BookingModificationEntity modification = new BookingModificationEntity();
@@ -95,6 +96,7 @@ public class BookingModificationService {
         BookingEntity booking = modification.getBooking();
 
         // Check for conflicts with new time
+        bookingValidator.validateDuration(booking.getResource(), modification.getRequestedStartTime(), modification.getRequestedEndTime());
         bookingValidator.ensureNoPendingOrApprovedOverlap(
             booking.getResource().getId(),
             modification.getRequestedStartTime(),

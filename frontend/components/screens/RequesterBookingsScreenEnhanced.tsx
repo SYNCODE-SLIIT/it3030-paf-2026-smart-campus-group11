@@ -42,6 +42,7 @@ import type {
   ResourceRemainingRangesResponse,
   ResourceResponse,
 } from '@/lib/api-types';
+import { getResourceCategoryLabel } from '@/lib/resource-display';
 import { RecurringBookingForm } from '@/components/booking/RecurringBookingForm';
 import { BookingModificationModal } from '@/components/booking/BookingModificationModal';
 import { BookingCheckInPanel } from '@/components/booking/BookingCheckInPanel';
@@ -56,7 +57,17 @@ type NoticeState = {
 
 type TabType = 'bookings' | 'recurring' | 'calendar' | 'notifications';
 
+const DURATION_HINTS: Record<string, string> = {
+  LECTURE_HALL: 'Max 3 hours',
+  LABORATORY: 'Max 3 hours',
+  LIBRARY_SPACE: 'Max 3 hours',
+  MEETING_ROOM: 'No limit',
+  EVENT_SPACE: 'No limit',
+};
+
 const NEW_BOOKING_INITIAL = {
+  category: '',
+  subcategory: '',
   resourceId: '',
   startTime: '',
   endTime: '',
@@ -123,6 +134,14 @@ function getIsoDate(value: string) {
     return null;
   }
   return parsed.toISOString().slice(0, 10);
+}
+
+function normalizeSubcategory(value: string | null) {
+  if (!value) {
+    return '';
+  }
+
+  return value.trim().replace(/[\s-]+/g, '_').toUpperCase();
 }
 
 export function RequesterBookingsScreenEnhanced({
@@ -343,6 +362,33 @@ export function RequesterBookingsScreenEnhanced({
   }
 
   const selectedCheckInBooking = bookings.find((b) => b.id === checkInBookingId);
+  const bookableResources = resources.filter((resource) => resource.status === 'ACTIVE' && resource.bookable);
+  const categoryOptions = Array.from(new Set(bookableResources.map((resource) => resource.category)))
+    .sort()
+    .map((category) => ({ value: category, label: getResourceCategoryLabel(category) }));
+  const categoryFilteredResources = form.category
+    ? bookableResources.filter((resource) => resource.category === form.category)
+    : [];
+  const subcategoryOptions = (form.category
+    ? Array.from(
+        new Set(
+          categoryFilteredResources
+            .map((resource) => resource.subcategory)
+            .filter((subcategory): subcategory is string => Boolean(subcategory && subcategory.trim())),
+        ),
+      )
+    : [])
+    .sort((left, right) => left.localeCompare(right))
+    .map((subcategory) => ({
+      value: subcategory,
+      label: subcategory,
+    }));
+  const filteredResources = form.subcategory
+    ? categoryFilteredResources.filter(
+      (resource) => normalizeSubcategory(resource.subcategory) === normalizeSubcategory(form.subcategory),
+    )
+    : categoryFilteredResources;
+  const selectedSubcategoryHint = DURATION_HINTS[normalizeSubcategory(form.subcategory)] ?? null;
 
   return (
     <div style={{ display: 'grid', gap: 28 }}>
@@ -418,13 +464,54 @@ export function RequesterBookingsScreenEnhanced({
               <Card style={{ padding: 20 }}>
                 <form onSubmit={handleCreateBooking} style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
                   <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 4 }}>Category</label>
+                    <Select
+                      value={form.category}
+                      onChange={(e) =>
+                        setForm((current) => ({
+                          ...current,
+                          category: e.target.value,
+                          subcategory: '',
+                          resourceId: '',
+                        }))
+                      }
+                      options={[
+                        { value: '', label: 'Select category' },
+                        ...categoryOptions,
+                      ]}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 4 }}>Subcategory</label>
+                    <Select
+                      value={form.subcategory}
+                      onChange={(e) =>
+                        setForm((current) => ({
+                          ...current,
+                          subcategory: e.target.value,
+                          resourceId: '',
+                        }))
+                      }
+                      options={[
+                        { value: '', label: 'Select subcategory' },
+                        ...subcategoryOptions,
+                      ]}
+                    />
+                    {selectedSubcategoryHint && (
+                      <p style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>{selectedSubcategoryHint}</p>
+                    )}
+                  </div>
+                  <div>
                     <label style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 4 }}>Resource</label>
                     <Select
                       value={form.resourceId}
-                      onChange={(e) => setForm({ ...form, resourceId: e.target.value })}
+                      onChange={(e) => setForm((current) => ({ ...current, resourceId: e.target.value }))}
                       options={[
                         { value: '', label: 'Select resource' },
-                        ...resources.map((r) => ({ value: r.id, label: r.code })),
+                        ...filteredResources.map((resource) => ({
+                          value: resource.id,
+                          label: `${resource.code} - ${resource.name}`,
+                        })),
                       ]}
                     />
                   </div>
