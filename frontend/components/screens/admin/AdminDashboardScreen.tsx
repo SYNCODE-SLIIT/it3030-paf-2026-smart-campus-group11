@@ -16,6 +16,7 @@ import {
 import { useRouter } from 'next/navigation';
 
 import { useAuth } from '@/components/providers/AuthProvider';
+import { UserIdentityCell } from '@/components/screens/admin/UserIdentityCell';
 import {
   Alert,
   Button,
@@ -32,6 +33,14 @@ import {
 } from '@/components/ui';
 import { getErrorMessage, listAuditLogs, listUsers } from '@/lib/api-client';
 import type { AuditLogResponse, UserResponse } from '@/lib/api-types';
+import {
+  getAccountStatusChipColor,
+  getAccountStatusLabel,
+  getUserAvatarInitials,
+  getUserDisplayName,
+  getUserTypeChipColor,
+  getUserTypeLabel,
+} from '@/lib/user-display';
 
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -57,6 +66,15 @@ function relativeTime(iso: string) {
     return rtf.format(Math.round(diffMs / hour), 'hour');
   }
   return rtf.format(Math.round(diffMs / day), 'day');
+}
+
+function formatDate(dateStr: string | null) {
+  if (!dateStr) return 'Never';
+  return new Date(dateStr).toLocaleDateString('en-GB', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
 }
 
 function emailInitials(email: string | null | undefined) {
@@ -93,20 +111,41 @@ function auditChipColor(action: AuditLogResponse['action']): 'yellow' | 'red' | 
   return 'yellow';
 }
 
+function getRoleDirectoryPath(userType: UserResponse['userType']) {
+  switch (userType) {
+    case 'STUDENT':
+      return '/admin/students';
+    case 'FACULTY':
+      return '/admin/faculty';
+    case 'MANAGER':
+      return '/admin/managers';
+    case 'ADMIN':
+      return '/admin/admins';
+  }
+}
+
+function getUserDetailPath(user: UserResponse) {
+  return `${getRoleDirectoryPath(user.userType)}/${user.id}`;
+}
+
 function DashboardMetric({
   label,
   value,
   caption,
   badge,
+  onClick,
+  actionLabel,
   icon: Icon,
 }: {
   label: string;
   value: React.ReactNode;
   caption: string;
   badge?: string;
+  onClick?: () => void;
+  actionLabel?: string;
   icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
 }) {
-  return (
+  const metricContent = (
     <Card hoverable>
       <div style={{ display: 'grid', gap: 12, position: 'relative', overflow: 'hidden' }}>
         <span
@@ -162,14 +201,52 @@ function DashboardMetric({
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', position: 'relative', zIndex: 1 }}>
           <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 12 }}>{caption}</p>
-          {badge && (
-            <Chip color="glass" size="sm">
-              {badge}
-            </Chip>
-          )}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            {badge && (
+              <Chip color="glass" size="sm">
+                {badge}
+              </Chip>
+            )}
+            {onClick && (
+              <span
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 9,
+                  fontWeight: 800,
+                  letterSpacing: '.12em',
+                  textTransform: 'uppercase',
+                  color: 'var(--yellow-700)',
+                }}
+              >
+                {actionLabel ?? 'Open'}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </Card>
+  );
+
+  if (!onClick) {
+    return metricContent;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        padding: 0,
+        margin: 0,
+        border: 'none',
+        background: 'transparent',
+        textAlign: 'left',
+        cursor: 'pointer',
+      }}
+      aria-label={`${label} - ${actionLabel ?? 'open details'}`}
+    >
+      {metricContent}
+    </button>
   );
 }
 
@@ -268,6 +345,9 @@ export function AdminDashboardScreen() {
     const invitedAt = new Date(user.invitedAt).getTime();
     return !Number.isNaN(invitedAt) && now - invitedAt < ONE_WEEK_MS;
   });
+  const recentAccounts = [...users]
+    .sort((a, b) => new Date(b.invitedAt).getTime() - new Date(a.invitedAt).getTime())
+    .slice(0, 6);
 
   const totalUsers = users.length;
   const activeRatio = totalUsers === 0 ? 0 : Math.round((activeThisWeek.length / totalUsers) * 100);
@@ -287,10 +367,10 @@ export function AdminDashboardScreen() {
   const systemHealthLabel = systemHealth >= 98 ? 'Optimal' : systemHealth >= 92 ? 'Stable' : 'Watchlist';
 
   const roleDistribution = [
-    { label: 'Students', count: studentUsers.length, color: 'yellow' as const },
-    { label: 'Faculty', count: facultyUsers.length, color: 'blue' as const },
-    { label: 'Managers', count: managerUsers.length, color: 'green' as const },
-    { label: 'Admins', count: adminUsers.length, color: 'orange' as const },
+    { label: 'Students', count: studentUsers.length, color: 'yellow' as const, path: '/admin/students' },
+    { label: 'Faculty', count: facultyUsers.length, color: 'blue' as const, path: '/admin/faculty' },
+    { label: 'Managers', count: managerUsers.length, color: 'green' as const, path: '/admin/managers' },
+    { label: 'Admins', count: adminUsers.length, color: 'orange' as const, path: '/admin/admins' },
   ].map((item) => ({
     ...item,
     percent: totalUsers === 0 ? 0 : Math.round((item.count / totalUsers) * 100),
@@ -459,6 +539,34 @@ export function AdminDashboardScreen() {
           border-radius: 4px 4px 0 0;
           background: var(--yellow-400);
         }
+        .admin-recent-account-row {
+          display: grid;
+          grid-template-columns: minmax(220px, 1fr) auto auto;
+          gap: 12px;
+          align-items: center;
+          padding: 10px 12px;
+          border: 1px solid var(--border);
+          border-radius: var(--radius-md);
+          background: var(--surface-2);
+        }
+        .admin-recent-account-meta {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+        .admin-recent-account-button {
+          width: 100%;
+          border: 1px solid var(--border);
+          cursor: pointer;
+          text-align: left;
+          transition: border-color .2s ease, transform .14s ease;
+        }
+        .admin-recent-account-button:hover {
+          border-color: rgba(238,202,68,.34);
+          transform: translateY(-1px);
+        }
         @keyframes admin-status-pulse {
           0%, 100% {
             opacity: .55;
@@ -477,6 +585,12 @@ export function AdminDashboardScreen() {
         @media (max-width: 780px) {
           .admin-visual-grid {
             grid-template-columns: 1fr;
+          }
+          .admin-recent-account-row {
+            grid-template-columns: 1fr;
+          }
+          .admin-recent-account-meta {
+            justify-content: flex-start;
           }
           .admin-traffic-shell {
             min-height: 188px;
@@ -545,6 +659,8 @@ export function AdminDashboardScreen() {
                 value={totalUsers}
                 caption="Directory accounts across all roles"
                 badge={invitedThisWeek.length > 0 ? `+${invitedThisWeek.length} this week` : 'No new invites'}
+                onClick={() => router.push('/admin/users')}
+                actionLabel="Users"
                 icon={Users}
               />
               <DashboardMetric
@@ -552,6 +668,8 @@ export function AdminDashboardScreen() {
                 value={activeThisWeek.length}
                 caption="Users with a recent login"
                 badge={`${activeRatio}% of directory`}
+                onClick={() => router.push('/admin/analytics')}
+                actionLabel="Analytics"
                 icon={Activity}
               />
               <DashboardMetric
@@ -559,6 +677,8 @@ export function AdminDashboardScreen() {
                 value={pendingInvites.length}
                 caption="Accounts waiting for first access"
                 badge={pendingInvites.length === 0 ? 'All clear' : 'Needs follow-up'}
+                onClick={() => router.push('/admin/users')}
+                actionLabel="Review"
                 icon={UserPlus}
               />
               <DashboardMetric
@@ -566,6 +686,8 @@ export function AdminDashboardScreen() {
                 value={`${systemHealth}%`}
                 caption="Availability weighted by account state"
                 badge={systemHealthLabel}
+                onClick={() => router.push('/admin/analytics')}
+                actionLabel="Health"
                 icon={ShieldCheck}
               />
             </div>
@@ -575,9 +697,14 @@ export function AdminDashboardScreen() {
                 <div style={{ display: 'grid', gap: 14 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                     <SectionTitle title="Traffic & Engagement" caption="Behavior trend derived from active users and account pressure." />
-                    <Chip color="glass" size="sm">
-                      Last 7 days
-                    </Chip>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <Chip color="glass" size="sm">
+                        Last 7 days
+                      </Chip>
+                      <Button variant="ghost" size="xs" onClick={() => router.push('/admin/analytics')}>
+                        Open
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="admin-traffic-shell" role="img" aria-label="Activity trend chart">
@@ -598,17 +725,35 @@ export function AdminDashboardScreen() {
 
               <Card>
                 <div style={{ display: 'grid', gap: 14 }}>
-                  <SectionTitle title="Role Distribution" caption="Current account split by directory role." />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <SectionTitle title="Role Distribution" caption="Current account split by directory role." />
+                    <Button variant="ghost" size="xs" onClick={() => router.push('/admin/users')}>
+                      Manage
+                    </Button>
+                  </div>
                   <div style={{ display: 'grid', gap: 12 }}>
                     {roleDistribution.map((entry) => (
-                      <Progress
+                      <button
                         key={entry.label}
-                        label={`${entry.label} (${entry.count})`}
-                        value={entry.percent}
-                        color={entry.color}
-                        showValue
-                        size="sm"
-                      />
+                        type="button"
+                        onClick={() => router.push(entry.path)}
+                        style={{
+                          border: 'none',
+                          background: 'transparent',
+                          padding: 0,
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                        }}
+                        aria-label={`Open ${entry.label} directory`}
+                      >
+                        <Progress
+                          label={`${entry.label} (${entry.count})`}
+                          value={entry.percent}
+                          color={entry.color}
+                          showValue
+                          size="sm"
+                        />
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -671,6 +816,45 @@ export function AdminDashboardScreen() {
                     </Table>
                   </div>
                 )}
+              </div>
+            </Card>
+
+            <Card>
+              <div style={{ display: 'grid', gap: 14 }}>
+                <SectionTitle title="Recent Accounts" caption="Newest accounts created in the directory." />
+                <div style={{ display: 'grid', gap: 9 }}>
+                  {recentAccounts.length === 0 ? (
+                    <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 13 }}>No users have been created yet.</p>
+                  ) : (
+                    recentAccounts.map((user) => (
+                      <button
+                        key={user.id}
+                        type="button"
+                        className="admin-recent-account-row admin-recent-account-button"
+                        onClick={() => router.push(getUserDetailPath(user))}
+                        aria-label={`Open ${getUserDisplayName(user)} profile`}
+                      >
+                        <UserIdentityCell
+                          name={getUserDisplayName(user)}
+                          email={user.email}
+                          initials={getUserAvatarInitials(user)}
+                          src={user.userType === 'STUDENT' ? user.studentProfile?.profileImageUrl : undefined}
+                        />
+                        <Chip color={getUserTypeChipColor(user.userType)} dot>
+                          {getUserTypeLabel(user.userType)}
+                        </Chip>
+                        <div className="admin-recent-account-meta">
+                          <Chip color={getAccountStatusChipColor(user.accountStatus)} dot>
+                            {getAccountStatusLabel(user.accountStatus)}
+                          </Chip>
+                          <span style={{ minWidth: 84, textAlign: 'right', color: 'var(--text-muted)', fontSize: 12 }}>
+                            {formatDate(user.invitedAt)}
+                          </span>
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
               </div>
             </Card>
           </div>
@@ -755,7 +939,12 @@ export function AdminDashboardScreen() {
               <div style={{ display: 'grid', gap: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                   <SectionTitle title="System Status" caption="Live admin operations health." />
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--yellow-400)', animation: 'admin-status-pulse 1.8s ease-in-out infinite' }} />
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--yellow-400)', animation: 'admin-status-pulse 1.8s ease-in-out infinite' }} />
+                    <Button variant="ghost" size="xs" onClick={() => router.push('/admin/analytics')}>
+                      Open
+                    </Button>
+                  </div>
                 </div>
                 <div style={{ display: 'grid', gap: 12 }}>
                   <Progress label="Directory availability" value={accountAvailability} color="green" showValue size="sm" />
@@ -767,25 +956,30 @@ export function AdminDashboardScreen() {
 
             <Card>
               <div style={{ position: 'relative', minHeight: 170, display: 'grid', alignContent: 'space-between', gap: 16, overflow: 'hidden' }}>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9 }}>
-                  <span
-                    style={{
-                      width: 30,
-                      height: 30,
-                      borderRadius: 9,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: 'rgba(238,202,68,.14)',
-                      color: 'var(--yellow-700)',
-                    }}
-                  >
-                    <Gauge size={16} strokeWidth={2.4} />
-                  </span>
-                  <div>
-                    <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 850, color: 'var(--text-h)' }}>Server Load</p>
-                    <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: 12 }}>Admin cluster alpha</p>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9 }}>
+                    <span
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: 9,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'rgba(238,202,68,.14)',
+                        color: 'var(--yellow-700)',
+                      }}
+                    >
+                      <Gauge size={16} strokeWidth={2.4} />
+                    </span>
+                    <div>
+                      <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 850, color: 'var(--text-h)' }}>Server Load</p>
+                      <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: 12 }}>Admin cluster alpha</p>
+                    </div>
                   </div>
+                  <Button variant="ghost" size="xs" onClick={() => router.push('/admin/analytics')}>
+                    Open
+                  </Button>
                 </div>
 
                 <div style={{ display: 'grid', gap: 10, position: 'relative', zIndex: 1 }}>
