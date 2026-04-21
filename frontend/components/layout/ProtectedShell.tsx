@@ -165,6 +165,13 @@ function getDefaultSections(workspace: Exclude<WorkspaceKind, 'auto'>, user?: Us
               allowedManagerRoles: ['CATALOG_MANAGER'],
             },
             {
+              label: 'Tickets',
+              icon: MessageSquare,
+              href: '/managers/catalog/tickets',
+              allowedUserTypes: ['MANAGER'],
+              allowedManagerRoles: ['CATALOG_MANAGER'],
+            },
+            {
               label: 'Bookings',
               icon: Calendar,
               href: '/booking-managers/bookings',

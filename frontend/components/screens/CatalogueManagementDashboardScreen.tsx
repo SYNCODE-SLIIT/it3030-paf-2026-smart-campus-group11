@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Boxes, FolderOpen, MapPinned, RefreshCcw, ShieldCheck } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 import { useAuth } from '@/components/providers/AuthProvider';
 import { Alert, Button, Card, Chip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
@@ -59,6 +60,7 @@ export function CatalogueManagementDashboardScreen({
   roleLabel: string;
 }) {
   const { session } = useAuth();
+  const router = useRouter();
   const accessToken = session?.access_token ?? null;
 
   const [resources, setResources] = React.useState<ResourceResponse[]>([]);
@@ -94,6 +96,7 @@ export function CatalogueManagementDashboardScreen({
   const bookableCount = resources.filter((resource) => resource.bookable).length;
   const locationCount = new Set(resources.map((resource) => resource.location).filter(Boolean)).size;
   const previewResources = resources.slice().sort((left, right) => left.code.localeCompare(right.code)).slice(0, 5);
+  const isManagerWorkspace = workspaceLabel === 'Manager Workspace';
 
   return (
     <div style={{ display: 'grid', gap: 28 }}>
@@ -156,6 +159,21 @@ export function CatalogueManagementDashboardScreen({
                 Legacy category, subcategory, and location fields are still mirrored so existing screens and booking flows remain stable during rollout.
               </p>
             </Card>
+            {isManagerWorkspace && (
+              <Card hoverable>
+                <div style={{ display: 'grid', gap: 10 }}>
+                  <div style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 800, color: 'var(--text-h)' }}>Support Tickets</div>
+                  <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 13, lineHeight: 1.7 }}>
+                    Raise and follow catalogue-related issues using the same requester ticket flow available elsewhere in the portal.
+                  </p>
+                  <div>
+                    <Button variant="subtle" size="sm" onClick={() => router.push('/managers/catalog/tickets')}>
+                      Open Tickets
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            )}
           </div>
 
           <div style={{ display: 'grid', gap: 12 }}>
