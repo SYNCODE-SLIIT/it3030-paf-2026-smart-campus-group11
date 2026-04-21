@@ -32,10 +32,12 @@ import com.university.smartcampus.ticket.dto.TicketDtos.TicketSummaryResponse;
 import com.university.smartcampus.ticket.dto.TicketDtos.UpdateCommentRequest;
 import com.university.smartcampus.ticket.dto.TicketDtos.UpdateTicketRequest;
 import com.university.smartcampus.ticket.entity.TicketAttachmentEntity;
+import com.university.smartcampus.ticket.entity.TicketAssignmentHistoryEntity;
 import com.university.smartcampus.ticket.entity.TicketCommentEntity;
 import com.university.smartcampus.ticket.entity.TicketEntity;
 import com.university.smartcampus.ticket.entity.TicketStatusHistoryEntity;
 import com.university.smartcampus.ticket.repository.TicketAttachmentRepository;
+import com.university.smartcampus.ticket.repository.TicketAssignmentHistoryRepository;
 import com.university.smartcampus.ticket.repository.TicketCommentRepository;
 import com.university.smartcampus.ticket.repository.TicketRepository;
 import com.university.smartcampus.ticket.repository.TicketStatusHistoryRepository;
@@ -49,6 +51,7 @@ public class TicketService {
 
     private final TicketRepository ticketRepository;
     private final TicketAttachmentRepository ticketAttachmentRepository;
+    private final TicketAssignmentHistoryRepository ticketAssignmentHistoryRepository;
     private final TicketCommentRepository ticketCommentRepository;
     private final TicketStatusHistoryRepository ticketStatusHistoryRepository;
     private final TicketAttachmentStorageClient ticketAttachmentStorageClient;
@@ -57,12 +60,14 @@ public class TicketService {
     public TicketService(
             TicketRepository ticketRepository,
             TicketAttachmentRepository ticketAttachmentRepository,
+            TicketAssignmentHistoryRepository ticketAssignmentHistoryRepository,
             TicketCommentRepository ticketCommentRepository,
             TicketStatusHistoryRepository ticketStatusHistoryRepository,
             TicketAttachmentStorageClient ticketAttachmentStorageClient,
             UserRepository userRepository) {
         this.ticketRepository = ticketRepository;
         this.ticketAttachmentRepository = ticketAttachmentRepository;
+        this.ticketAssignmentHistoryRepository = ticketAssignmentHistoryRepository;
         this.ticketCommentRepository = ticketCommentRepository;
         this.ticketStatusHistoryRepository = ticketStatusHistoryRepository;
         this.ticketAttachmentStorageClient = ticketAttachmentStorageClient;
@@ -232,7 +237,10 @@ public class TicketService {
         if (ticket.getStatus() != TicketStatus.OPEN) {
             throw new BadRequestException("Tickets cannot be reassigned after they are accepted.");
         }
-        ticket.setAssignedTo(resolveAssignableAssignee(assignedToUserId));
+        UserEntity oldAssignee = ticket.getAssignedTo();
+        UserEntity newAssignee = resolveAssignableAssignee(assignedToUserId);
+        ticket.setAssignedTo(newAssignee);
+        recordAssignmentHistory(ticket, oldAssignee, newAssignee, actor, null);
         return toTicketResponse(ticket);
     }
 
@@ -419,6 +427,19 @@ public class TicketService {
         history.setNote(note);
         history.setChangedAt(Instant.now());
         ticketStatusHistoryRepository.save(history);
+    }
+
+    private void recordAssignmentHistory(TicketEntity ticket, UserEntity oldAssignee, UserEntity newAssignee,
+            UserEntity changedBy, String note) {
+        TicketAssignmentHistoryEntity history = new TicketAssignmentHistoryEntity();
+        history.setId(UUID.randomUUID());
+        history.setTicket(ticket);
+        history.setOldAssignee(oldAssignee);
+        history.setNewAssignee(newAssignee);
+        history.setChangedBy(changedBy);
+        history.setNote(note);
+        history.setChangedAt(Instant.now());
+        ticketAssignmentHistoryRepository.save(history);
     }
 
     private void requireAttachmentManagementAccess(UserEntity user, TicketEntity ticket) {

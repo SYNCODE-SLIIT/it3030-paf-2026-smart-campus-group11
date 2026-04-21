@@ -26,6 +26,8 @@ import {
   type StudentOnboardingRequest,
   type StudentOnboardingStateResponse,
   type TicketAttachmentResponse,
+  type TicketAnalyticsQuery,
+  type TicketAnalyticsResponse,
   type TicketCategory,
   type TicketCommentResponse,
   type TicketPriority,
@@ -641,6 +643,22 @@ export async function listMyTickets(
   const query = qs.toString();
   const data = await request<unknown>(`/api/tickets${query ? `?${query}` : ''}`, { accessToken });
   return extractHalCollection<TicketSummaryResponse>(data);
+}
+
+export async function getTicketAnalytics(
+  accessToken: string,
+  params?: TicketAnalyticsQuery,
+): Promise<TicketAnalyticsResponse> {
+  const qs = new URLSearchParams();
+  if (params?.from) qs.set('from', params.from);
+  if (params?.to) qs.set('to', params.to);
+  if (params?.bucket) qs.set('bucket', params.bucket);
+  if (params?.assigneeId) qs.set('assigneeId', params.assigneeId);
+  if (params?.unassignedOnly !== undefined) qs.set('unassignedOnly', String(params.unassignedOnly));
+  if (params?.category) qs.set('category', params.category);
+  if (params?.priority) qs.set('priority', params.priority);
+  const query = qs.toString();
+  return request<TicketAnalyticsResponse>(`/api/tickets/analytics${query ? `?${query}` : ''}`, { accessToken });
 }
 
 export async function createTicket(accessToken: string, payload: CreateTicketRequest): Promise<TicketResponse> {

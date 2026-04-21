@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -38,9 +39,12 @@ import com.university.smartcampus.ticket.dto.TicketDtos.CreateTicketRequest;
 import com.university.smartcampus.ticket.dto.TicketDtos.TicketStatusUpdateRequest;
 import com.university.smartcampus.ticket.dto.TicketDtos.UpdateCommentRequest;
 import com.university.smartcampus.ticket.entity.TicketAttachmentEntity;
+import com.university.smartcampus.ticket.entity.TicketAssignmentHistoryEntity;
 import com.university.smartcampus.ticket.entity.TicketCommentEntity;
 import com.university.smartcampus.ticket.entity.TicketEntity;
+import com.university.smartcampus.ticket.entity.TicketStatusHistoryEntity;
 import com.university.smartcampus.ticket.repository.TicketAttachmentRepository;
+import com.university.smartcampus.ticket.repository.TicketAssignmentHistoryRepository;
 import com.university.smartcampus.ticket.repository.TicketCommentRepository;
 import com.university.smartcampus.ticket.repository.TicketRepository;
 import com.university.smartcampus.ticket.repository.TicketStatusHistoryRepository;
@@ -72,6 +76,9 @@ class TicketManagementControllerTest extends AbstractPostgresIntegrationTest {
     private TicketAttachmentRepository ticketAttachmentRepository;
 
     @Autowired
+    private TicketAssignmentHistoryRepository ticketAssignmentHistoryRepository;
+
+    @Autowired
     private TicketCommentRepository ticketCommentRepository;
 
     @Autowired
@@ -87,6 +94,7 @@ class TicketManagementControllerTest extends AbstractPostgresIntegrationTest {
     void setUp() {
         mockMvc = webAppContextSetup(context).apply(springSecurity()).build();
         ticketAttachmentRepository.deleteAll();
+        ticketAssignmentHistoryRepository.deleteAll();
         ticketCommentRepository.deleteAll();
         ticketAttachmentStorageClient.reset();
         ticketStatusHistoryRepository.deleteAll();
@@ -174,6 +182,151 @@ class TicketManagementControllerTest extends AbstractPostgresIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$._embedded.tickets.length()").value(1))
                 .andExpect(jsonPath("$._embedded.tickets[0].id").value(assigned.getId().toString()));
+    }
+
+    @Test
+    void adminTicketAnalyticsIncludesCampusWideOperationalMetrics() throws Exception {
+        Instant now = Instant.now();
+        Instant from = now.minus(Duration.ofDays(10));
+        Instant to = now.plus(Duration.ofMinutes(5));
+
+        TicketEntity unassignedUrgent = setTicketCreatedAt(
+                seedTicket("student@campus.test", TicketStatus.OPEN),
+                now.minus(Duration.ofDays(2)));
+        unassignedUrgent.setPriority(TicketPriority.URGENT);
+        ticketRepository.save(unassignedUrgent);
+
+        TicketEntity resolved = setTicketCreatedAt(
+                assignTicketTo("ticketmgr@campus.test", seedTicket("student@campus.test", TicketStatus.RESOLVED)),
+                now.minus(Duration.ofDays(4)));
+        resolved.setResolvedAt(now.minus(Duration.ofDays(1)));
+        ticketRepository.save(resolved);
+        seedAssignmentHistory(resolved, null, "ticketmgr@campus.test", "admin@campus.test",
+                now.minus(Duration.ofDays(3)));
+        seedStatusHistory(resolved, TicketStatus.OPEN, TicketStatus.IN_PROGRESS, "ticketmgr@campus.test",
+                now.minus(Duration.ofDays(2)), "Accepted");
+        seedStatusHistory(resolved, TicketStatus.IN_PROGRESS, TicketStatus.RESOLVED, "ticketmgr@campus.test",
+                now.minus(Duration.ofDays(1)), "Resolved");
+        seedComment(resolved, "student@campus.test", "Any update?", now.minus(Duration.ofDays(2)));
+        seedComment(resolved, "ticketmgr@campus.test", "Fixed.", now.minus(Duration.ofDays(1)));
+        seedAttachment(resolved);
+
+        TicketEntity rejected = setTicketCreatedAt(
+                assignTicketTo("ticketmgr@campus.test", seedTicket("student@campus.test", TicketStatus.REJECTED)),
+                now.minus(Duration.ofDays(6)));
+        ticketRepository.save(rejected);
+        seedStatusHistory(rejected, TicketStatus.OPEN, TicketStatus.REJECTED, "ticketmgr@campus.test",
+                now.minus(Duration.ofDays(5)), "Duplicate");
+
+        mockMvc.perform(get("/api/tickets/analytics")
+                        .param("from", from.toString())
+                        .param("to", to.toString())
+                        .param("bucket", "DAY")
+                        .with(jwtFor("admin@campus.test")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.totalTickets").value(3))
+                .andExpect(jsonPath("$.summary.activeBacklog").value(1))
+                .andExpect(jsonPath("$.summary.unassignedOpen").value(1))
+                .andExpect(jsonPath("$.summary.urgentActive").value(1))
+                .andExpect(jsonPath("$.summary.positiveResolutionRate").value(50.0))
+                .andExpect(jsonPath("$.summary.rejectionRate").value(50.0))
+                .andExpect(jsonPath("$.timing.averageTimeToAssignMinutes").value(1440.0))
+                .andExpect(jsonPath("$.timing.averageTimeToAcceptMinutes").value(2880.0))
+                .andExpect(jsonPath("$.timing.averageTimeToResolveMinutes").value(4320.0))
+                .andExpect(jsonPath("$.communication.totalComments").value(2))
+                .andExpect(jsonPath("$.communication.ticketsWithAttachments").value(1))
+                .andExpect(jsonPath("$.assignment.totalAssignmentEvents").value(1))
+                .andExpect(jsonPath("$.attentionTickets.length()").value(1))
+                .andExpect(jsonPath("$.recentStatusEvents.length()").value(org.hamcrest.Matchers.greaterThanOrEqualTo(3)))
+                .andExpect(jsonPath("$.managerPerformance.length()").value(1))
+                .andExpect(jsonPath("$.managerPerformance[0].assigneeEmail").value("ticketmgr@campus.test"))
+                .andExpect(jsonPath("$.managerPerformance[0].assignedTotal").value(2));
+    }
+
+    @Test
+    void ticketManagerAnalyticsIncludesOnlyAssignedTicketsAndRejectsAdminFilters() throws Exception {
+        TicketEntity assigned = assignTicketTo("ticketmgr@campus.test",
+                seedTicket("student@campus.test", TicketStatus.OPEN));
+        assigned.setPriority(TicketPriority.HIGH);
+        ticketRepository.save(assigned);
+        seedTicket("student@campus.test", TicketStatus.OPEN);
+
+        mockMvc.perform(get("/api/tickets/analytics")
+                        .with(jwtFor("ticketmgr@campus.test")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.totalTickets").value(1))
+                .andExpect(jsonPath("$.summary.open").value(1))
+                .andExpect(jsonPath("$.summary.unassignedOpen").value(0))
+                .andExpect(jsonPath("$.managerPerformance.length()").value(0));
+
+        mockMvc.perform(get("/api/tickets/analytics")
+                        .param("unassignedOnly", "true")
+                        .with(jwtFor("ticketmgr@campus.test")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(
+                        "Ticket managers cannot filter analytics by assignee or unassigned queue."));
+    }
+
+    @Test
+    void ticketAnalyticsRejectsStudentAndFacultyAccess() throws Exception {
+        seedFaculty("faculty@campus.test");
+
+        mockMvc.perform(get("/api/tickets/analytics")
+                        .with(jwtFor("student@campus.test")))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/tickets/analytics")
+                        .with(jwtFor("faculty@campus.test")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void analyticsDateRangeAffectsTrendsButNotSnapshotCounts() throws Exception {
+        Instant now = Instant.now();
+        Instant from = now.minus(Duration.ofHours(2));
+        Instant to = now.plus(Duration.ofMinutes(5));
+
+        setTicketCreatedAt(seedTicket("student@campus.test", TicketStatus.OPEN), now.minus(Duration.ofDays(20)));
+        setTicketCreatedAt(seedTicket("student@campus.test", TicketStatus.OPEN), now.minus(Duration.ofMinutes(30)));
+        TicketEntity oldResolved = setTicketCreatedAt(
+                seedTicket("student@campus.test", TicketStatus.RESOLVED),
+                now.minus(Duration.ofDays(20)));
+        oldResolved.setResolvedAt(now.minus(Duration.ofDays(15)));
+        ticketRepository.save(oldResolved);
+        TicketEntity oldRejected = setTicketCreatedAt(
+                seedTicket("student@campus.test", TicketStatus.REJECTED),
+                now.minus(Duration.ofDays(18)));
+        seedStatusHistory(oldRejected, TicketStatus.OPEN, TicketStatus.REJECTED, "ticketmgr@campus.test",
+                now.minus(Duration.ofDays(14)), "Out of window");
+
+        mockMvc.perform(get("/api/tickets/analytics")
+                        .param("from", from.toString())
+                        .param("to", to.toString())
+                        .param("bucket", "MONTH")
+                        .with(jwtFor("admin@campus.test")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.totalTickets").value(4))
+                .andExpect(jsonPath("$.summary.resolved").value(1))
+                .andExpect(jsonPath("$.summary.rejected").value(1))
+                .andExpect(jsonPath("$.summary.positiveResolutionRate").doesNotExist())
+                .andExpect(jsonPath("$.summary.rejectionRate").doesNotExist())
+                .andExpect(jsonPath("$.trends.length()").value(1))
+                .andExpect(jsonPath("$.trends[0].created").value(1));
+    }
+
+    @Test
+    void emptyTicketAnalyticsReturnsZeroCountsAndNullAverages() throws Exception {
+        UUID unknownAssignee = UUID.randomUUID();
+
+        mockMvc.perform(get("/api/tickets/analytics")
+                        .param("assigneeId", unknownAssignee.toString())
+                        .with(jwtFor("admin@campus.test")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.totalTickets").value(0))
+                .andExpect(jsonPath("$.summary.activeBacklog").value(0))
+                .andExpect(jsonPath("$.timing.averageTimeToResolveMinutes").doesNotExist())
+                .andExpect(jsonPath("$.communication.totalComments").value(0))
+                .andExpect(jsonPath("$.trends.length()").value(org.hamcrest.Matchers.greaterThan(0)));
     }
 
     @Test
@@ -1408,8 +1561,7 @@ class TicketManagementControllerTest extends AbstractPostgresIntegrationTest {
         ticket.setReportedBy(reporter);
         TicketEntity savedTicket = ticketRepository.save(ticket);
 
-        com.university.smartcampus.ticket.entity.TicketStatusHistoryEntity history =
-                new com.university.smartcampus.ticket.entity.TicketStatusHistoryEntity();
+        TicketStatusHistoryEntity history = new TicketStatusHistoryEntity();
         history.setId(UUID.randomUUID());
         history.setTicket(savedTicket);
         history.setOldStatus(null);
@@ -1419,6 +1571,49 @@ class TicketManagementControllerTest extends AbstractPostgresIntegrationTest {
         ticketStatusHistoryRepository.save(history);
 
         return savedTicket;
+    }
+
+    private TicketEntity setTicketCreatedAt(TicketEntity ticket, Instant createdAt) {
+        ticket.setCreatedAt(createdAt);
+        TicketEntity saved = ticketRepository.save(ticket);
+        ticketStatusHistoryRepository.findByTicketIdOrderByChangedAtAsc(saved.getId()).stream()
+                .filter(history -> history.getOldStatus() == null && history.getNewStatus() == TicketStatus.OPEN)
+                .findFirst()
+                .ifPresent(history -> {
+                    history.setChangedAt(createdAt);
+                    ticketStatusHistoryRepository.save(history);
+                });
+        return saved;
+    }
+
+    private TicketStatusHistoryEntity seedStatusHistory(TicketEntity ticket, TicketStatus oldStatus,
+            TicketStatus newStatus, String changedByEmail, Instant changedAt, String note) {
+        UserEntity changedBy = userRepository.findByEmailIgnoreCase(changedByEmail).orElseThrow();
+        TicketStatusHistoryEntity history = new TicketStatusHistoryEntity();
+        history.setId(UUID.randomUUID());
+        history.setTicket(ticket);
+        history.setOldStatus(oldStatus);
+        history.setNewStatus(newStatus);
+        history.setChangedBy(changedBy);
+        history.setChangedAt(changedAt);
+        history.setNote(note);
+        return ticketStatusHistoryRepository.save(history);
+    }
+
+    private TicketAssignmentHistoryEntity seedAssignmentHistory(TicketEntity ticket, String oldAssigneeEmail,
+            String newAssigneeEmail, String changedByEmail, Instant changedAt) {
+        TicketAssignmentHistoryEntity history = new TicketAssignmentHistoryEntity();
+        history.setId(UUID.randomUUID());
+        history.setTicket(ticket);
+        history.setOldAssignee(oldAssigneeEmail == null
+                ? null
+                : userRepository.findByEmailIgnoreCase(oldAssigneeEmail).orElseThrow());
+        history.setNewAssignee(newAssigneeEmail == null
+                ? null
+                : userRepository.findByEmailIgnoreCase(newAssigneeEmail).orElseThrow());
+        history.setChangedBy(userRepository.findByEmailIgnoreCase(changedByEmail).orElseThrow());
+        history.setChangedAt(changedAt);
+        return ticketAssignmentHistoryRepository.save(history);
     }
 
     private TicketEntity assignTicketTo(String assigneeEmail, TicketEntity ticket) {

@@ -64,6 +64,136 @@ public final class TicketDtos {
     ) {
     }
 
+    public enum TicketAnalyticsBucket {
+        DAY,
+        WEEK,
+        MONTH
+    }
+
+    public record TicketAnalyticsResponse(
+        Instant from,
+        Instant to,
+        TicketAnalyticsBucket bucket,
+        TicketAnalyticsSummary summary,
+        TicketAnalyticsTiming timing,
+        TicketAnalyticsCommunication communication,
+        TicketAnalyticsAssignment assignment,
+        java.util.List<TicketAnalyticsBreakdownRow> statusBreakdown,
+        java.util.List<TicketAnalyticsBreakdownRow> priorityBreakdown,
+        java.util.List<TicketAnalyticsBreakdownRow> categoryBreakdown,
+        java.util.List<TicketAnalyticsTrendPoint> trends,
+        java.util.List<TicketAnalyticsAttentionTicket> attentionTickets,
+        java.util.List<TicketAnalyticsStatusEvent> recentStatusEvents,
+        java.util.List<TicketAnalyticsManagerPerformance> managerPerformance
+    ) {
+    }
+
+    public record TicketAnalyticsSummary(
+        long totalTickets,
+        long activeBacklog,
+        long open,
+        long inProgress,
+        long resolved,
+        long closed,
+        long rejected,
+        long unassignedOpen,
+        long urgentActive,
+        Double positiveResolutionRate,
+        Double rejectionRate
+    ) {
+    }
+
+    public record TicketAnalyticsTiming(
+        Double averageActiveAgeMinutes,
+        Double averageTimeToAssignMinutes,
+        Double averageTimeToAcceptMinutes,
+        Double averageTimeToResolveMinutes,
+        Double averageTimeInProgressMinutes,
+        Double averageClosureLagMinutes
+    ) {
+    }
+
+    public record TicketAnalyticsCommunication(
+        long totalComments,
+        Double averageCommentsPerTicket,
+        long ticketsWithAttachments,
+        long totalAttachments,
+        Double averageAttachmentsPerTicket
+    ) {
+    }
+
+    public record TicketAnalyticsAssignment(
+        long totalAssignmentEvents,
+        long reassignmentEvents,
+        long ticketsAssignedInWindow
+    ) {
+    }
+
+    public record TicketAnalyticsBreakdownRow(
+        String key,
+        String label,
+        long count,
+        Double percentage
+    ) {
+    }
+
+    public record TicketAnalyticsTrendPoint(
+        Instant bucketStart,
+        Instant bucketEnd,
+        long created,
+        long resolved,
+        long rejected,
+        long activeBacklog
+    ) {
+    }
+
+    public record TicketAnalyticsAttentionTicket(
+        UUID id,
+        String ticketCode,
+        String title,
+        TicketCategory category,
+        TicketPriority priority,
+        TicketStatus status,
+        UUID assignedToId,
+        String assignedToName,
+        String reportedByEmail,
+        Instant createdAt,
+        Instant lastStatusChangedAt,
+        long ageMinutes,
+        String reason
+    ) {
+    }
+
+    public record TicketAnalyticsStatusEvent(
+        UUID id,
+        UUID ticketId,
+        String ticketCode,
+        String title,
+        TicketStatus oldStatus,
+        TicketStatus newStatus,
+        UUID changedById,
+        String changedByEmail,
+        String note,
+        Instant changedAt
+    ) {
+    }
+
+    public record TicketAnalyticsManagerPerformance(
+        UUID assigneeId,
+        String assigneeName,
+        String assigneeEmail,
+        long assignedTotal,
+        long active,
+        long urgentActive,
+        long resolvedClosed,
+        long rejected,
+        Double averageTimeToAcceptMinutes,
+        Double averageTimeToResolveMinutes,
+        long assignmentEvents,
+        long reassignmentEvents
+    ) {
+    }
+
     @Relation(itemRelation = "ticket", collectionRelation = "tickets")
     public record TicketSummaryResponse(
         UUID id,
