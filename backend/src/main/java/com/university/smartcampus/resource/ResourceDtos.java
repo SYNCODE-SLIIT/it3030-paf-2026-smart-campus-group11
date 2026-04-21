@@ -109,4 +109,37 @@ public final class ResourceDtos {
         int displayOrder
     ) {
     }
+
+    public record ResourceTypeOption(
+        UUID id,
+        String code,
+        String name,
+        String category,
+        boolean isBookableDefault,
+        boolean isMovableDefault
+    ) {
+    }
+
+    public record LocationOption(
+        UUID id,
+        String locationName,
+        String buildingName,
+        String floor,
+        String roomCode,
+        String locationType
+    ) {
+    }
+
+    public record ResourceFeatureOption(
+        UUID id,
+        String code,
+        String name
+    ) {
+    }
+
+    public record ManagedByRoleOption(
+        String value,
+        String label
+    ) {
+    }
 }

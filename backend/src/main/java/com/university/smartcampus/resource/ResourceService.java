@@ -19,8 +19,12 @@ import com.university.smartcampus.common.exception.BadRequestException;
 import com.university.smartcampus.common.exception.ConflictException;
 import com.university.smartcampus.common.exception.NotFoundException;
 import com.university.smartcampus.resource.ResourceDtos.CreateResourceRequest;
+import com.university.smartcampus.resource.ResourceDtos.LocationOption;
+import com.university.smartcampus.resource.ResourceDtos.ManagedByRoleOption;
+import com.university.smartcampus.resource.ResourceDtos.ResourceFeatureOption;
 import com.university.smartcampus.resource.ResourceDtos.ResourceResponse;
 import com.university.smartcampus.resource.ResourceDtos.ResourceSummary;
+import com.university.smartcampus.resource.ResourceDtos.ResourceTypeOption;
 import com.university.smartcampus.resource.ResourceDtos.UpdateResourceRequest;
 
 @Service
@@ -113,6 +117,53 @@ public class ResourceService {
     @Transactional(readOnly = true)
     public ResourceResponse getResourceById(UUID id) {
         return resourceMapper.toResourceResponse(getResourceEntity(id));
+    }
+
+    @Transactional(readOnly = true)
+    public List<ResourceTypeOption> getResourceTypeOptions() {
+        return resourceTypeRepository.findAllByOrderByNameAsc().stream()
+            .map(resourceType -> new ResourceTypeOption(
+                resourceType.getId(),
+                resourceType.getCode(),
+                resourceType.getName(),
+                resourceType.getCategory() == null ? null : resourceType.getCategory().name(),
+                resourceType.isBookableDefault(),
+                resourceType.isMovableDefault()
+            ))
+            .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<LocationOption> getLocationOptions() {
+        return locationRepository.findAllByOrderByLocationNameAsc().stream()
+            .map(location -> new LocationOption(
+                location.getId(),
+                location.getLocationName(),
+                location.getBuildingName(),
+                location.getFloor(),
+                location.getRoomCode(),
+                location.getLocationType()
+            ))
+            .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ResourceFeatureOption> getResourceFeatureOptions() {
+        return resourceFeatureRepository.findAllByOrderByNameAsc().stream()
+            .map(feature -> new ResourceFeatureOption(
+                feature.getId(),
+                feature.getCode(),
+                feature.getName()
+            ))
+            .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ManagedByRoleOption> getManagedByRoleOptions() {
+        return ALLOWED_MANAGED_BY_ROLES.stream()
+            .sorted()
+            .map(role -> new ManagedByRoleOption(role, toManagedByRoleLabel(role)))
+            .toList();
     }
 
     @Transactional
@@ -272,5 +323,27 @@ public class ResourceService {
 
     private String likeValue(String value) {
         return "%" + value.trim().toLowerCase(Locale.ROOT) + "%";
+    }
+
+    private String toManagedByRoleLabel(String role) {
+        String[] parts = role.toLowerCase(Locale.ROOT).split("_");
+        StringBuilder label = new StringBuilder();
+
+        for (int index = 0; index < parts.length; index++) {
+            if (parts[index].isEmpty()) {
+                continue;
+            }
+
+            if (label.length() > 0) {
+                label.append(' ');
+            }
+
+            label.append(Character.toUpperCase(parts[index].charAt(0)));
+            if (parts[index].length() > 1) {
+                label.append(parts[index].substring(1));
+            }
+        }
+
+        return label.toString();
     }
 }
