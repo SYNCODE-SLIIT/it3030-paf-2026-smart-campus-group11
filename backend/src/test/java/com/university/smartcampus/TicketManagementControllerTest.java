@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -35,6 +36,7 @@ import com.university.smartcampus.ticket.dto.TicketDtos.AddTicketAttachmentReque
 import com.university.smartcampus.ticket.dto.TicketDtos.AssignTicketRequest;
 import com.university.smartcampus.ticket.dto.TicketDtos.CreateTicketRequest;
 import com.university.smartcampus.ticket.dto.TicketDtos.TicketStatusUpdateRequest;
+import com.university.smartcampus.ticket.dto.TicketDtos.UpdateCommentRequest;
 import com.university.smartcampus.ticket.entity.TicketAttachmentEntity;
 import com.university.smartcampus.ticket.entity.TicketCommentEntity;
 import com.university.smartcampus.ticket.entity.TicketEntity;
@@ -109,7 +111,8 @@ class TicketManagementControllerTest extends AbstractPostgresIntegrationTest {
                 .andExpect(jsonPath("$.ticketCode").value(org.hamcrest.Matchers.matchesPattern("TCK-\\d{4}")))
                 .andExpect(jsonPath("$.status").value("OPEN"))
                 .andExpect(jsonPath("$.title").value("Broken light in Lab 3"))
-                .andExpect(jsonPath("$.reportedByEmail").value("student@campus.test"));
+                .andExpect(jsonPath("$.reportedByEmail").value("student@campus.test"))
+                .andExpect(jsonPath("$._links.self.href").exists());
     }
 
     @Test
@@ -156,8 +159,8 @@ class TicketManagementControllerTest extends AbstractPostgresIntegrationTest {
         mockMvc.perform(get("/api/tickets")
                         .with(jwtFor("student@campus.test")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].reportedByEmail").value("student@campus.test"));
+                .andExpect(jsonPath("$._embedded.tickets.length()").value(1))
+                .andExpect(jsonPath("$._embedded.tickets[0].reportedByEmail").value("student@campus.test"));
     }
 
     @Test
@@ -169,8 +172,8 @@ class TicketManagementControllerTest extends AbstractPostgresIntegrationTest {
 
         mockMvc.perform(get("/api/tickets").with(jwtFor("ticketmgr@campus.test")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].id").value(assigned.getId().toString()));
+                .andExpect(jsonPath("$._embedded.tickets.length()").value(1))
+                .andExpect(jsonPath("$._embedded.tickets[0].id").value(assigned.getId().toString()));
     }
 
     @Test
@@ -191,7 +194,8 @@ class TicketManagementControllerTest extends AbstractPostgresIntegrationTest {
         mockMvc.perform(get("/api/tickets/{id}", ticket.getId())
                         .with(jwtFor("ticketmgr@campus.test")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(ticket.getId().toString()));
+                .andExpect(jsonPath("$.id").value(ticket.getId().toString()))
+                .andExpect(jsonPath("$._links.self.href").exists());
     }
 
     @Test
@@ -673,7 +677,24 @@ class TicketManagementControllerTest extends AbstractPostgresIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.commentText").value("Please prioritise this, it's causing issues."))
                 .andExpect(jsonPath("$.userEmail").value("student@campus.test"))
-                .andExpect(jsonPath("$.isEdited").value(false));
+                .andExpect(jsonPath("$.isEdited").value(false))
+                .andExpect(jsonPath("$._links.self.href").exists())
+                .andExpect(jsonPath("$._links['edit-comment'].href").exists());
+    }
+
+    @Test
+    void getCommentReturnsHalResource() throws Exception {
+        TicketEntity ticket = seedTicket("student@campus.test", TicketStatus.OPEN);
+        TicketCommentEntity comment = seedComment(
+                ticket, "student@campus.test", "Existing note.", Instant.parse("2026-04-20T08:00:00Z"));
+
+        mockMvc.perform(get("/api/tickets/{id}/comments/{commentId}", ticket.getId(), comment.getId())
+                        .with(jwtFor("student@campus.test")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.commentText").value("Existing note."))
+                .andExpect(jsonPath("$._links.self.href").exists())
+                .andExpect(jsonPath("$._links.ticket.href").exists())
+                .andExpect(jsonPath("$._links.comments.href").exists());
     }
 
     @Test
@@ -687,7 +708,8 @@ class TicketManagementControllerTest extends AbstractPostgresIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.userEmail").value("ticketmgr@campus.test"));
+                .andExpect(jsonPath("$.userEmail").value("ticketmgr@campus.test"))
+                .andExpect(jsonPath("$._links.self.href").exists());
     }
 
     @Test
@@ -702,7 +724,8 @@ class TicketManagementControllerTest extends AbstractPostgresIntegrationTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.userEmail").value("admin@campus.test"))
-                .andExpect(jsonPath("$.commentText").value("Following up as admin."));
+                .andExpect(jsonPath("$.commentText").value("Following up as admin."))
+                .andExpect(jsonPath("$._links.self.href").exists());
     }
 
     @Test
@@ -724,6 +747,182 @@ class TicketManagementControllerTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    void commentAuthorCanEditOwnLatestComment() throws Exception {
+        TicketEntity ticket = seedTicket("student@campus.test", TicketStatus.OPEN);
+        TicketCommentEntity comment = seedComment(
+                ticket, "student@campus.test", "Original note.", Instant.parse("2026-04-20T08:00:00Z"));
+        UpdateCommentRequest request = new UpdateCommentRequest("Updated note.");
+
+        mockMvc.perform(patch("/api/tickets/{id}/comments/{commentId}", ticket.getId(), comment.getId())
+                        .with(jwtFor("student@campus.test"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.commentText").value("Updated note."))
+                .andExpect(jsonPath("$.isEdited").value(true))
+                .andExpect(jsonPath("$._links['edit-comment'].href").exists())
+                .andExpect(jsonPath("$._links['delete-comment'].href").exists());
+
+        TicketCommentEntity persisted = ticketCommentRepository.findById(comment.getId()).orElseThrow();
+        assertThat(persisted.getCommentText()).isEqualTo("Updated note.");
+        assertThat(persisted.isEdited()).isTrue();
+    }
+
+    @Test
+    void assignedTicketManagerCanEditOwnLatestComment() throws Exception {
+        TicketEntity ticket = assignTicketTo("ticketmgr@campus.test",
+                seedTicket("student@campus.test", TicketStatus.IN_PROGRESS));
+        seedComment(ticket, "student@campus.test", "Student update.", Instant.parse("2026-04-20T08:00:00Z"));
+        TicketCommentEntity managerComment = seedComment(
+                ticket, "ticketmgr@campus.test", "Manager note.", Instant.parse("2026-04-20T09:00:00Z"));
+        UpdateCommentRequest request = new UpdateCommentRequest("Manager note, edited.");
+
+        mockMvc.perform(patch("/api/tickets/{id}/comments/{commentId}", ticket.getId(), managerComment.getId())
+                        .with(jwtFor("ticketmgr@campus.test"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.commentText").value("Manager note, edited."))
+                .andExpect(jsonPath("$.isEdited").value(true));
+    }
+
+    @Test
+    void adminCannotEditAnotherUsersLatestComment() throws Exception {
+        TicketEntity ticket = seedTicket("student@campus.test", TicketStatus.RESOLVED);
+        TicketCommentEntity comment = seedComment(
+                ticket, "student@campus.test", "Student final note.", Instant.parse("2026-04-20T08:00:00Z"));
+        UpdateCommentRequest request = new UpdateCommentRequest("Admin rewrite.");
+
+        mockMvc.perform(patch("/api/tickets/{id}/comments/{commentId}", ticket.getId(), comment.getId())
+                        .with(jwtFor("admin@campus.test"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("You can only edit your own comments."));
+
+        assertThat(ticketCommentRepository.findById(comment.getId()).orElseThrow().getCommentText())
+                .isEqualTo("Student final note.");
+    }
+
+    @Test
+    void reporterCannotEditAnotherUsersLatestCommentOnOwnTicket() throws Exception {
+        TicketEntity ticket = assignTicketTo("ticketmgr@campus.test",
+                seedTicket("student@campus.test", TicketStatus.IN_PROGRESS));
+        TicketCommentEntity managerComment = seedComment(
+                ticket, "ticketmgr@campus.test", "Manager update.", Instant.parse("2026-04-20T08:00:00Z"));
+        UpdateCommentRequest request = new UpdateCommentRequest("Reporter rewrite.");
+
+        mockMvc.perform(patch("/api/tickets/{id}/comments/{commentId}", ticket.getId(), managerComment.getId())
+                        .with(jwtFor("student@campus.test"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("You can only edit your own comments."));
+
+        assertThat(ticketCommentRepository.findById(managerComment.getId()).orElseThrow().getCommentText())
+                .isEqualTo("Manager update.");
+    }
+
+    @Test
+    void authorCannotEditOlderComment() throws Exception {
+        TicketEntity ticket = seedTicket("student@campus.test", TicketStatus.OPEN);
+        TicketCommentEntity olderComment = seedComment(
+                ticket, "student@campus.test", "First note.", Instant.parse("2026-04-20T08:00:00Z"));
+        seedComment(ticket, "student@campus.test", "Newer note.", Instant.parse("2026-04-20T09:00:00Z"));
+        UpdateCommentRequest request = new UpdateCommentRequest("Edited first note.");
+
+        mockMvc.perform(patch("/api/tickets/{id}/comments/{commentId}", ticket.getId(), olderComment.getId())
+                        .with(jwtFor("student@campus.test"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Only the latest ticket comment can be edited."));
+
+        assertThat(ticketCommentRepository.findById(olderComment.getId()).orElseThrow().getCommentText())
+                .isEqualTo("First note.");
+    }
+
+    @Test
+    void editCommentWithMismatchedTicketReturnsNotFound() throws Exception {
+        TicketEntity ticket = seedTicket("student@campus.test", TicketStatus.OPEN);
+        TicketEntity otherTicket = seedTicket("student@campus.test", TicketStatus.OPEN);
+        TicketCommentEntity comment = seedComment(
+                ticket, "student@campus.test", "Ticket comment.", Instant.parse("2026-04-20T08:00:00Z"));
+        UpdateCommentRequest request = new UpdateCommentRequest("Updated note.");
+
+        mockMvc.perform(patch("/api/tickets/{id}/comments/{commentId}", otherTicket.getId(), comment.getId())
+                        .with(jwtFor("student@campus.test"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Ticket comment not found."));
+    }
+
+    @Test
+    void userCannotEditCommentOnInaccessibleTicket() throws Exception {
+        seedStudent("other-edit@campus.test");
+        TicketEntity ticket = seedTicket("other-edit@campus.test", TicketStatus.OPEN);
+        TicketCommentEntity comment = seedComment(
+                ticket, "other-edit@campus.test", "Private note.", Instant.parse("2026-04-20T08:00:00Z"));
+        UpdateCommentRequest request = new UpdateCommentRequest("Updated private note.");
+
+        mockMvc.perform(patch("/api/tickets/{id}/comments/{commentId}", ticket.getId(), comment.getId())
+                        .with(jwtFor("student@campus.test"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+
+        assertThat(ticketCommentRepository.findById(comment.getId()).orElseThrow().getCommentText())
+                .isEqualTo("Private note.");
+    }
+
+    @Test
+    void blankEditCommentTextReturnsBadRequest() throws Exception {
+        TicketEntity ticket = seedTicket("student@campus.test", TicketStatus.OPEN);
+        TicketCommentEntity comment = seedComment(
+                ticket, "student@campus.test", "Original note.", Instant.parse("2026-04-20T08:00:00Z"));
+        UpdateCommentRequest request = new UpdateCommentRequest(" ");
+
+        mockMvc.perform(patch("/api/tickets/{id}/comments/{commentId}", ticket.getId(), comment.getId())
+                        .with(jwtFor("student@campus.test"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+
+        assertThat(ticketCommentRepository.findById(comment.getId()).orElseThrow().getCommentText())
+                .isEqualTo("Original note.");
+    }
+
+    @Test
+    void commentCollectionIncludesEditOnlyForLatestAuthoredComment() throws Exception {
+        TicketEntity ticket = seedTicket("student@campus.test", TicketStatus.OPEN);
+        seedComment(ticket, "student@campus.test", "First note.", Instant.parse("2026-04-20T08:00:00Z"));
+        seedComment(ticket, "student@campus.test", "Newer note.", Instant.parse("2026-04-20T09:00:00Z"));
+
+        mockMvc.perform(get("/api/tickets/{id}/comments", ticket.getId())
+                        .with(jwtFor("student@campus.test")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$._embedded.comments.length()").value(2))
+                .andExpect(jsonPath("$._embedded.comments[0]._links['edit-comment']").doesNotExist())
+                .andExpect(jsonPath("$._embedded.comments[0]._links['delete-comment']").doesNotExist())
+                .andExpect(jsonPath("$._embedded.comments[1]._links['edit-comment'].href").exists())
+                .andExpect(jsonPath("$._embedded.comments[1]._links['delete-comment'].href").exists());
+    }
+
+    @Test
+    void adminCommentCollectionCanDeleteButNotEditAnotherUsersLatestComment() throws Exception {
+        TicketEntity ticket = seedTicket("student@campus.test", TicketStatus.RESOLVED);
+        seedComment(ticket, "student@campus.test", "Final student note.", Instant.parse("2026-04-20T08:00:00Z"));
+
+        mockMvc.perform(get("/api/tickets/{id}/comments", ticket.getId())
+                        .with(jwtFor("admin@campus.test")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$._embedded.comments.length()").value(1))
+                .andExpect(jsonPath("$._embedded.comments[0]._links['edit-comment']").doesNotExist())
+                .andExpect(jsonPath("$._embedded.comments[0]._links['delete-comment'].href").exists());
+    }
+
+    @Test
     void reporterCanDeleteOwnLatestComment() throws Exception {
         TicketEntity ticket = seedTicket("student@campus.test", TicketStatus.OPEN);
         TicketCommentEntity comment = seedComment(
@@ -738,7 +937,8 @@ class TicketManagementControllerTest extends AbstractPostgresIntegrationTest {
         mockMvc.perform(get("/api/tickets/{id}/comments", ticket.getId())
                         .with(jwtFor("student@campus.test")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$._links.self.href").exists())
+                .andExpect(jsonPath("$._embedded").doesNotExist());
     }
 
     @Test
@@ -856,13 +1056,28 @@ class TicketManagementControllerTest extends AbstractPostgresIntegrationTest {
                 .andExpect(jsonPath("$.fileName").value("broken-light.jpg"))
                 .andExpect(jsonPath("$.fileUrl").value("https://files.campus.test/broken-light.jpg"))
                 .andExpect(jsonPath("$.fileType").value("image/jpeg"))
-                .andExpect(jsonPath("$.uploadedAt").isNotEmpty());
+                .andExpect(jsonPath("$.uploadedAt").isNotEmpty())
+                .andExpect(jsonPath("$._links.self.href").exists());
 
         mockMvc.perform(get("/api/tickets/{id}/attachments", ticket.getId())
                         .with(jwtFor("student@campus.test")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].fileName").value("broken-light.jpg"));
+                .andExpect(jsonPath("$._embedded.attachments.length()").value(1))
+                .andExpect(jsonPath("$._embedded.attachments[0].fileName").value("broken-light.jpg"));
+    }
+
+    @Test
+    void getAttachmentReturnsHalResource() throws Exception {
+        TicketEntity ticket = seedTicket("student@campus.test", TicketStatus.OPEN);
+        TicketAttachmentEntity attachment = seedAttachment(ticket);
+
+        mockMvc.perform(get("/api/tickets/{id}/attachments/{attachmentId}", ticket.getId(), attachment.getId())
+                        .with(jwtFor("student@campus.test")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fileName").value("existing-file.pdf"))
+                .andExpect(jsonPath("$._links.self.href").exists())
+                .andExpect(jsonPath("$._links.ticket.href").exists())
+                .andExpect(jsonPath("$._links.attachments.href").exists());
     }
 
     @Test
@@ -884,15 +1099,16 @@ class TicketManagementControllerTest extends AbstractPostgresIntegrationTest {
                         "https://storage.campus.test/ticket-attachments/tickets/"
                                 + ticket.getId() + "/broken-light.jpg"))
                 .andExpect(jsonPath("$.fileType").value("image/jpeg"))
-                .andExpect(jsonPath("$.uploadedAt").isNotEmpty());
+                .andExpect(jsonPath("$.uploadedAt").isNotEmpty())
+                .andExpect(jsonPath("$._links.self.href").exists());
 
         assertThat(ticketAttachmentStorageClient.uploads()).hasSize(1);
 
         mockMvc.perform(get("/api/tickets/{id}/attachments", ticket.getId())
                         .with(jwtFor("student@campus.test")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].fileName").value("broken-light.jpg"));
+                .andExpect(jsonPath("$._embedded.attachments.length()").value(1))
+                .andExpect(jsonPath("$._embedded.attachments[0].fileName").value("broken-light.jpg"));
     }
 
     @Test
@@ -907,13 +1123,14 @@ class TicketManagementControllerTest extends AbstractPostgresIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.fileName").value("network-log.txt"));
+                .andExpect(jsonPath("$.fileName").value("network-log.txt"))
+                .andExpect(jsonPath("$._links.self.href").exists());
 
         mockMvc.perform(get("/api/tickets/{id}/attachments", ticket.getId())
                         .with(jwtFor("ticketmgr@campus.test")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].fileType").value("text/plain"));
+                .andExpect(jsonPath("$._embedded.attachments.length()").value(1))
+                .andExpect(jsonPath("$._embedded.attachments[0].fileType").value("text/plain"));
     }
 
     @Test
@@ -960,7 +1177,8 @@ class TicketManagementControllerTest extends AbstractPostgresIntegrationTest {
         mockMvc.perform(get("/api/tickets/{id}/attachments", ticket.getId())
                         .with(jwtFor("student@campus.test")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$._links.self.href").exists())
+                .andExpect(jsonPath("$._embedded").doesNotExist());
     }
 
     @Test
@@ -1014,11 +1232,25 @@ class TicketManagementControllerTest extends AbstractPostgresIntegrationTest {
         mockMvc.perform(get("/api/tickets/{id}/history", ticket.getId())
                         .with(jwtFor("student@campus.test")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].newStatus").value("OPEN"))
-                .andExpect(jsonPath("$[0].oldStatus").isEmpty())
-                .andExpect(jsonPath("$[1].oldStatus").value("OPEN"))
-                .andExpect(jsonPath("$[1].newStatus").value("IN_PROGRESS"));
+                .andExpect(jsonPath("$._embedded.statusHistory.length()").value(2))
+                .andExpect(jsonPath("$._embedded.statusHistory[0].newStatus").value("OPEN"))
+                .andExpect(jsonPath("$._embedded.statusHistory[0].oldStatus").isEmpty())
+                .andExpect(jsonPath("$._embedded.statusHistory[1].oldStatus").value("OPEN"))
+                .andExpect(jsonPath("$._embedded.statusHistory[1].newStatus").value("IN_PROGRESS"));
+    }
+
+    @Test
+    void getStatusHistoryEntryReturnsHalResource() throws Exception {
+        TicketEntity ticket = seedTicket("student@campus.test", TicketStatus.OPEN);
+        var history = ticketStatusHistoryRepository.findByTicketIdOrderByChangedAtAsc(ticket.getId()).get(0);
+
+        mockMvc.perform(get("/api/tickets/{id}/history/{historyId}", ticket.getId(), history.getId())
+                        .with(jwtFor("student@campus.test")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.newStatus").value("OPEN"))
+                .andExpect(jsonPath("$._links.self.href").exists())
+                .andExpect(jsonPath("$._links.ticket.href").exists())
+                .andExpect(jsonPath("$._links.history.href").exists());
     }
 
     @Test
