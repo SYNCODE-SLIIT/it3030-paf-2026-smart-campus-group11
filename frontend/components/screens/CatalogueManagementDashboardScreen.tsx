@@ -5,7 +5,8 @@ import { Boxes, FolderOpen, MapPinned, RefreshCcw, ShieldCheck } from 'lucide-re
 import { useRouter } from 'next/navigation';
 
 import { useAuth } from '@/components/providers/AuthProvider';
-import { Alert, Button, Card, Chip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
+import { Alert, Button, Card, Chip } from '@/components/ui';
+import { AdminResourcesScreen } from '@/components/screens/AdminResourcesScreen';
 import { getErrorMessage, listResources } from '@/lib/api-client';
 import type { ResourceResponse } from '@/lib/api-types';
 
@@ -94,8 +95,11 @@ export function CatalogueManagementDashboardScreen({
 
   const activeCount = resources.filter((resource) => resource.status === 'ACTIVE').length;
   const bookableCount = resources.filter((resource) => resource.bookable).length;
-  const locationCount = new Set(resources.map((resource) => resource.location).filter(Boolean)).size;
-  const previewResources = resources.slice().sort((left, right) => left.code.localeCompare(right.code)).slice(0, 5);
+  const locationCount = new Set(
+    resources
+      .map((resource) => resource.locationDetails?.locationName ?? resource.location)
+      .filter(Boolean),
+  ).size;
   const isManagerWorkspace = workspaceLabel === 'Manager Workspace';
 
   return (
@@ -178,46 +182,12 @@ export function CatalogueManagementDashboardScreen({
 
           <div style={{ display: 'grid', gap: 12 }}>
             <div>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, color: 'var(--text-h)' }}>Catalogue Preview</div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, color: 'var(--text-h)' }}>Resource Management</div>
               <div style={{ marginTop: 4, color: 'var(--text-muted)', fontSize: 13 }}>
-                A quick read-only snapshot of the current resource records while the dedicated normalized management flow is prepared.
+                The existing resource management table and form are now wired to the normalized resource catalogue payload and lookup data.
               </div>
             </div>
-
-            <div style={{ overflowX: 'auto' }}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableHeader>Code</TableHeader>
-                    <TableHeader>Name</TableHeader>
-                    <TableHeader>Category</TableHeader>
-                    <TableHeader>Status</TableHeader>
-                    <TableHeader>Location</TableHeader>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={5}>Loading catalogue preview…</TableCell>
-                    </TableRow>
-                  ) : previewResources.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5}>No resources are available to preview yet.</TableCell>
-                    </TableRow>
-                  ) : (
-                    previewResources.map((resource) => (
-                      <TableRow key={resource.id}>
-                        <TableCell><strong>{resource.code}</strong></TableCell>
-                        <TableCell>{resource.name}</TableCell>
-                        <TableCell>{resource.category}</TableCell>
-                        <TableCell>{resource.status}</TableCell>
-                        <TableCell>{resource.location ?? '—'}</TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+            <AdminResourcesScreen embedded />
           </div>
         </div>
       </Card>

@@ -16,11 +16,15 @@ import {
   type ErrorResponse,
   type ManagerRole,
   type ManagerRoleUpdateRequest,
+  type ManagedByRoleOption,
   type MessageResponse,
   type ModificationDecisionRequest,
+  type LocationOption,
   type RecurringBookingResponse,
   type RequestModificationRequest,
+  type ResourceFeatureOption,
   type ResourceResponse,
+  type ResourceTypeOption,
   type SessionSyncResponse,
   type StudentOnboardingRequest,
   type StudentOnboardingStateResponse,
@@ -370,6 +374,30 @@ export async function completeStudentOnboarding(accessToken: string, payload: St
 
 export async function listResources(accessToken: string) {
   return request<ResourceResponse[]>('/api/resources', {
+    accessToken,
+  });
+}
+
+export async function listResourceTypeOptions(accessToken: string) {
+  return request<ResourceTypeOption[]>('/api/resources/lookups/types', {
+    accessToken,
+  });
+}
+
+export async function listLocationOptions(accessToken: string) {
+  return request<LocationOption[]>('/api/resources/lookups/locations', {
+    accessToken,
+  });
+}
+
+export async function listResourceFeatureOptions(accessToken: string) {
+  return request<ResourceFeatureOption[]>('/api/resources/lookups/features', {
+    accessToken,
+  });
+}
+
+export async function listManagedByRoleOptions(accessToken: string) {
+  return request<ManagedByRoleOption[]>('/api/resources/lookups/managed-roles', {
     accessToken,
   });
 }

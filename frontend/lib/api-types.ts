@@ -34,6 +34,16 @@ export type ResourceCategory =
 
 export type ResourceStatus = 'ACTIVE' | 'OUT_OF_SERVICE' | 'MAINTENANCE' | 'INACTIVE';
 
+export type ResourceManagedByRole =
+  | 'CATALOG_MANAGER'
+  | 'LIBRARY_MANAGER'
+  | 'TECHNICAL_MANAGER'
+  | 'FACILITIES_MANAGER'
+  | 'MAINTENANCE_MANAGER'
+  | 'SPORTS_MANAGER'
+  | 'EVENTS_MANAGER'
+  | 'TRANSPORT_MANAGER';
+
 export type StudentFaculty =
   | 'FACULTY_OF_COMPUTING'
   | 'FACULTY_OF_ENGINEERING'
@@ -117,38 +127,95 @@ export interface ResourceResponse {
   availableTo: string | null;
   createdAt: string;
   updatedAt: string;
+  resourceType: ResourceTypeDetails | null;
+  locationDetails: LocationDetails | null;
+  features: ResourceFeatureDetails[];
+  images: ResourceImageDetails[];
 }
 
 export interface CreateResourceRequest {
   code: string;
   name: string;
-  category: ResourceCategory;
-  subcategory?: string | null;
   description?: string | null;
-  location?: string | null;
+  resourceTypeId: string;
+  locationId: string;
   capacity?: number | null;
   quantity?: number | null;
   status: ResourceStatus;
   bookable: boolean;
   movable: boolean;
-  availableFrom?: string | null;
-  availableTo?: string | null;
+  managedByRole?: ResourceManagedByRole | null;
+  featureCodes?: string[] | null;
 }
 
 export interface UpdateResourceRequest {
-  code?: string;
   name?: string;
-  category?: ResourceCategory;
-  subcategory?: string | null;
   description?: string | null;
-  location?: string | null;
+  resourceTypeId?: string;
+  locationId?: string;
   capacity?: number | null;
   quantity?: number | null;
   status?: ResourceStatus;
   bookable?: boolean;
   movable?: boolean;
-  availableFrom?: string | null;
-  availableTo?: string | null;
+  managedByRole?: ResourceManagedByRole | null;
+  featureCodes?: string[] | null;
+}
+
+export interface ResourceTypeDetails {
+  id: string;
+  code: string;
+  name: string;
+  category: ResourceCategory;
+}
+
+export interface LocationDetails {
+  id: string;
+  locationName: string;
+  buildingName: string | null;
+  floor: string | null;
+  roomCode: string | null;
+  locationType: string;
+}
+
+export interface ResourceFeatureDetails {
+  code: string;
+  name: string;
+}
+
+export interface ResourceImageDetails {
+  imageUrl: string;
+  isPrimary: boolean;
+  displayOrder: number;
+}
+
+export interface ResourceTypeOption {
+  id: string;
+  code: string;
+  name: string;
+  category: ResourceCategory;
+  isBookableDefault: boolean;
+  isMovableDefault: boolean;
+}
+
+export interface LocationOption {
+  id: string;
+  locationName: string;
+  buildingName: string | null;
+  floor: string | null;
+  roomCode: string | null;
+  locationType: string;
+}
+
+export interface ResourceFeatureOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface ManagedByRoleOption {
+  value: ResourceManagedByRole;
+  label: string;
 }
 
 export interface ResourceSummary {
