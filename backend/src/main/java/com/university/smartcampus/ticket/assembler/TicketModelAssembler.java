@@ -244,7 +244,7 @@ public class TicketModelAssembler {
 
     private boolean canDeleteTicket(UserEntity actor, TicketContext ticket) {
         if (isAdmin(actor)) {
-            return isTerminalStatus(ticket.status());
+            return ticket.status() == TicketStatus.CLOSED;
         }
         return isReporter(actor, ticket) && ticket.assignedToId() == null;
     }
@@ -291,12 +291,6 @@ public class TicketModelAssembler {
 
     private boolean isAssignedTo(UserEntity actor, TicketContext ticket) {
         return ticket.assignedToId() != null && ticket.assignedToId().equals(actor.getId());
-    }
-
-    private boolean isTerminalStatus(TicketStatus status) {
-        return status == TicketStatus.RESOLVED
-                || status == TicketStatus.CLOSED
-                || status == TicketStatus.REJECTED;
     }
 
     private boolean isAdmin(UserEntity user) {

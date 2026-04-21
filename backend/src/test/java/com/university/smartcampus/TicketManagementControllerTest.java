@@ -663,7 +663,7 @@ class TicketManagementControllerTest extends AbstractPostgresIntegrationTest {
     @Test
     void ticketManagerCanRejectTicket() throws Exception {
         TicketEntity ticket = assignTicketTo("ticketmgr@campus.test",
-                seedTicket("student@campus.test", TicketStatus.OPEN));
+                seedTicket("student@campus.test", TicketStatus.IN_PROGRESS));
 
         TicketStatusUpdateRequest request = new TicketStatusUpdateRequest(
                 TicketStatus.REJECTED, null, null, null, "Duplicate of TCK-0001.");
@@ -680,7 +680,7 @@ class TicketManagementControllerTest extends AbstractPostgresIntegrationTest {
     @Test
     void rejectWithoutReasonReturnsBadRequest() throws Exception {
         TicketEntity ticket = assignTicketTo("ticketmgr@campus.test",
-                seedTicket("student@campus.test", TicketStatus.OPEN));
+                seedTicket("student@campus.test", TicketStatus.IN_PROGRESS));
 
         TicketStatusUpdateRequest request = new TicketStatusUpdateRequest(
                 TicketStatus.REJECTED, null, null, null, null);
@@ -707,6 +707,113 @@ class TicketManagementControllerTest extends AbstractPostgresIntegrationTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Resolution notes are required when resolving a ticket."));
+    }
+
+    @Test
+    void ticketManagerCanCloseResolvedTicket() throws Exception {
+        TicketEntity ticket = assignTicketTo("ticketmgr@campus.test",
+                seedTicket("student@campus.test", TicketStatus.RESOLVED));
+
+        TicketStatusUpdateRequest request = new TicketStatusUpdateRequest(
+                TicketStatus.CLOSED, "Confirmed with reporter.", null, null, null);
+
+        mockMvc.perform(put("/api/tickets/{id}/status", ticket.getId())
+                        .with(jwtFor("ticketmgr@campus.test"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CLOSED"))
+                .andExpect(jsonPath("$.closedAt").isNotEmpty());
+    }
+
+    @Test
+    void ticketManagerCanCloseRejectedTicket() throws Exception {
+        TicketEntity ticket = assignTicketTo("ticketmgr@campus.test",
+                seedTicket("student@campus.test", TicketStatus.REJECTED));
+
+        TicketStatusUpdateRequest request = new TicketStatusUpdateRequest(
+                TicketStatus.CLOSED, "Rejected and closed.", null, null, null);
+
+        mockMvc.perform(put("/api/tickets/{id}/status", ticket.getId())
+                        .with(jwtFor("ticketmgr@campus.test"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CLOSED"))
+                .andExpect(jsonPath("$.closedAt").isNotEmpty());
+    }
+
+    @Test
+    void inProgressCannotTransitionDirectlyToClosed() throws Exception {
+        TicketEntity ticket = assignTicketTo("ticketmgr@campus.test",
+                seedTicket("student@campus.test", TicketStatus.IN_PROGRESS));
+
+        TicketStatusUpdateRequest request = new TicketStatusUpdateRequest(
+                TicketStatus.CLOSED, "Closing directly.", null, null, null);
+
+        mockMvc.perform(put("/api/tickets/{id}/status", ticket.getId())
+                        .with(jwtFor("ticketmgr@campus.test"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Invalid ticket status transition."));
+
+        assertThat(ticketRepository.findById(ticket.getId()).orElseThrow().getStatus())
+                .isEqualTo(TicketStatus.IN_PROGRESS);
+    }
+
+    @Test
+    void openCannotTransitionToResolved() throws Exception {
+        TicketEntity ticket = assignTicketTo("ticketmgr@campus.test",
+                seedTicket("student@campus.test", TicketStatus.OPEN));
+
+        TicketStatusUpdateRequest request = new TicketStatusUpdateRequest(
+                TicketStatus.RESOLVED, null, null, "Resolved without accepting.", null);
+
+        mockMvc.perform(put("/api/tickets/{id}/status", ticket.getId())
+                        .with(jwtFor("ticketmgr@campus.test"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Invalid ticket status transition."));
+
+        assertThat(ticketRepository.findById(ticket.getId()).orElseThrow().getStatus())
+                .isEqualTo(TicketStatus.OPEN);
+    }
+
+    @Test
+    void openCannotTransitionToRejected() throws Exception {
+        TicketEntity ticket = assignTicketTo("ticketmgr@campus.test",
+                seedTicket("student@campus.test", TicketStatus.OPEN));
+
+        TicketStatusUpdateRequest request = new TicketStatusUpdateRequest(
+                TicketStatus.REJECTED, null, null, null, "Rejected without accepting.");
+
+        mockMvc.perform(put("/api/tickets/{id}/status", ticket.getId())
+                        .with(jwtFor("ticketmgr@campus.test"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Invalid ticket status transition."));
+
+        assertThat(ticketRepository.findById(ticket.getId()).orElseThrow().getStatus())
+                .isEqualTo(TicketStatus.OPEN);
+    }
+
+    @Test
+    void sameStatusTransitionReturnsBadRequest() throws Exception {
+        TicketEntity ticket = assignTicketTo("ticketmgr@campus.test",
+                seedTicket("student@campus.test", TicketStatus.IN_PROGRESS));
+
+        TicketStatusUpdateRequest request = new TicketStatusUpdateRequest(
+                TicketStatus.IN_PROGRESS, "Still in progress.", null, null, null);
+
+        mockMvc.perform(put("/api/tickets/{id}/status", ticket.getId())
+                        .with(jwtFor("ticketmgr@campus.test"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("No status transition requested."));
     }
 
     @Test
@@ -775,30 +882,46 @@ class TicketManagementControllerTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    void adminCanDeleteTerminalTickets() throws Exception {
-        for (TicketStatus status : new TicketStatus[] { TicketStatus.RESOLVED, TicketStatus.CLOSED, TicketStatus.REJECTED }) {
-            TicketEntity ticket = seedTicket("student@campus.test", status);
+    void adminCanDeleteClosedTickets() throws Exception {
+        TicketEntity ticket = seedTicket("student@campus.test", TicketStatus.CLOSED);
 
-            mockMvc.perform(delete("/api/tickets/{id}", ticket.getId())
-                            .with(jwtFor("admin@campus.test")))
-                    .andExpect(status().isNoContent());
+        mockMvc.perform(delete("/api/tickets/{id}", ticket.getId())
+                        .with(jwtFor("admin@campus.test")))
+                .andExpect(status().isNoContent());
 
-            assertThat(ticketRepository.findById(ticket.getId())).isEmpty();
-        }
+        assertThat(ticketRepository.findById(ticket.getId())).isEmpty();
     }
 
     @Test
-    void adminCannotDeleteOpenOrInProgressTickets() throws Exception {
-        for (TicketStatus status : new TicketStatus[] { TicketStatus.OPEN, TicketStatus.IN_PROGRESS }) {
+    void adminCannotDeleteNonClosedTickets() throws Exception {
+        for (TicketStatus status : new TicketStatus[] {
+                TicketStatus.OPEN, TicketStatus.IN_PROGRESS, TicketStatus.RESOLVED, TicketStatus.REJECTED }) {
             TicketEntity ticket = seedTicket("student@campus.test", status);
 
             mockMvc.perform(delete("/api/tickets/{id}", ticket.getId())
                             .with(jwtFor("admin@campus.test")))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.message").value(
-                            "Admins can only delete resolved, closed, or rejected tickets."));
+                            "Admins can only delete closed tickets."));
 
             assertThat(ticketRepository.findById(ticket.getId())).isPresent();
+        }
+    }
+
+    @Test
+    void adminGetsDeleteLinkOnlyForClosedTickets() throws Exception {
+        for (TicketStatus status : TicketStatus.values()) {
+            TicketEntity ticket = seedTicket("student@campus.test", status);
+
+            var response = mockMvc.perform(get("/api/tickets/{id}", ticket.getId())
+                            .with(jwtFor("admin@campus.test")))
+                    .andExpect(status().isOk());
+
+            if (status == TicketStatus.CLOSED) {
+                response.andExpect(jsonPath("$._links['delete-ticket'].href").exists());
+            } else {
+                response.andExpect(jsonPath("$._links['delete-ticket']").doesNotExist());
+            }
         }
     }
 

@@ -216,13 +216,14 @@ export function AdminTicketDetailScreen({ ticketRef }: { ticketRef: string }) {
     );
   }
 
-  const isClosed = ticket.status === 'CLOSED' || ticket.status === 'REJECTED';
-  const isDone = ticket.status === 'RESOLVED' || ticket.status === 'CLOSED' || ticket.status === 'REJECTED';
+  const isStatusLocked = ticket.status === 'CLOSED';
+  const isCommentLocked = ticket.status === 'CLOSED' || ticket.status === 'REJECTED';
+  const canDelete = ticket.status === 'CLOSED';
   const isAssignedToMe = Boolean(appUser && ticket.assignedToId === appUser.id);
-  const canManageStatus = isAssignedToMe && !isClosed;
+  const canManageStatus = isAssignedToMe && !isStatusLocked;
   const canComment = ticket.status === 'IN_PROGRESS';
 
-  const commentLockReason = isClosed
+  const commentLockReason = isCommentLocked
     ? `Comments are disabled for ${ticket.status === 'CLOSED' ? 'closed' : 'rejected'} tickets.`
     : 'Comments are available while the ticket is in progress.';
 
@@ -303,7 +304,7 @@ export function AdminTicketDetailScreen({ ticketRef }: { ticketRef: string }) {
               onRejectOpen={() => setRejectModalOpen(true)}
             />
           )}
-          {isDone && (
+          {canDelete && (
             <div style={{ background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '14px 16px' }}>
               <p style={{ margin: '0 0 10px', fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
                 Danger Zone

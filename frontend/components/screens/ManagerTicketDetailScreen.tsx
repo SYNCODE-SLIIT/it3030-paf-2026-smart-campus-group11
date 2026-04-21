@@ -176,10 +176,12 @@ export function ManagerTicketDetailScreen({ ticketRef }: { ticketRef: string }) 
     );
   }
 
-  const isFinal = ticket.status === 'CLOSED' || ticket.status === 'REJECTED';
-  const canComment = ticket.status !== 'OPEN' && !isFinal;
+  const isStatusLocked = ticket.status === 'CLOSED';
+  const canComment = ticket.status !== 'OPEN'
+    && ticket.status !== 'CLOSED'
+    && ticket.status !== 'REJECTED';
 
-  const commentLockReason = isFinal
+  const commentLockReason = (ticket.status === 'CLOSED' || ticket.status === 'REJECTED')
     ? `Comments are disabled for ${ticket.status === 'CLOSED' ? 'closed' : 'rejected'} tickets.`
     : 'Accept the ticket first to enable comments.';
 
@@ -233,7 +235,7 @@ export function ManagerTicketDetailScreen({ ticketRef }: { ticketRef: string }) 
 
         {/* Sidebar */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {!isFinal && (
+          {!isStatusLocked && (
             <TicketActionsCard
               ticket={ticket}
               statusSubmitting={statusSubmitting}

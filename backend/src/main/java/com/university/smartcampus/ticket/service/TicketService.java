@@ -162,8 +162,8 @@ public class TicketService {
         TicketEntity ticket = getTicketEntity(ticketRef);
 
         if (isAdmin(user)) {
-            if (!isTerminalStatus(ticket.getStatus())) {
-                throw new BadRequestException("Admins can only delete resolved, closed, or rejected tickets.");
+            if (ticket.getStatus() != TicketStatus.CLOSED) {
+                throw new BadRequestException("Admins can only delete closed tickets.");
             }
         } else {
             if (!ticket.getReportedBy().getId().equals(user.getId())) {
@@ -192,12 +192,11 @@ public class TicketService {
         TicketEntity ticket = getTicketEntity(ticketRef);
         requireTicketStatusManagementAccess(manager, ticket);
 
-        if (ticket.getStatus() == TicketStatus.CLOSED) {
+        TicketStatus oldStatus = ticket.getStatus();
+        if (oldStatus == TicketStatus.CLOSED) {
             throw new BadRequestException("Closed tickets cannot be updated.");
         }
-        if (request.newStatus() == TicketStatus.OPEN) {
-            throw new BadRequestException("Cannot transition a ticket back to OPEN.");
-        }
+        validateStatusTransition(oldStatus, request.newStatus());
         if (request.newStatus() == TicketStatus.REJECTED && !StringUtils.hasText(request.rejectionReason())) {
             throw new BadRequestException("Rejection reason is required when rejecting a ticket.");
         }
@@ -205,7 +204,6 @@ public class TicketService {
             throw new BadRequestException("Resolution notes are required when resolving a ticket.");
         }
 
-        TicketStatus oldStatus = ticket.getStatus();
         ticket.setStatus(request.newStatus());
 
         if (StringUtils.hasText(request.resolutionNotes())) {
@@ -520,10 +518,23 @@ public class TicketService {
                 && ticket.getAssignedTo().getId().equals(user.getId());
     }
 
-    private boolean isTerminalStatus(TicketStatus status) {
-        return status == TicketStatus.RESOLVED
-                || status == TicketStatus.CLOSED
-                || status == TicketStatus.REJECTED;
+    private void validateStatusTransition(TicketStatus currentStatus, TicketStatus nextStatus) {
+        if (nextStatus == TicketStatus.OPEN) {
+            throw new BadRequestException("Cannot transition a ticket back to OPEN.");
+        }
+        if (currentStatus == nextStatus) {
+            throw new BadRequestException("No status transition requested.");
+        }
+
+        boolean allowed = switch (currentStatus) {
+            case OPEN -> nextStatus == TicketStatus.IN_PROGRESS;
+            case IN_PROGRESS -> nextStatus == TicketStatus.RESOLVED || nextStatus == TicketStatus.REJECTED;
+            case RESOLVED, REJECTED -> nextStatus == TicketStatus.CLOSED;
+            case CLOSED -> false;
+        };
+        if (!allowed) {
+            throw new BadRequestException("Invalid ticket status transition.");
+        }
     }
 
     private boolean isAdmin(UserEntity user) {
