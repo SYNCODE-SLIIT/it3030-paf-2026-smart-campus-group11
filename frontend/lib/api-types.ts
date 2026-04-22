@@ -701,8 +701,6 @@ export interface StudentOnboardingRequest {
   academicYear: AcademicYear;
   semester: Semester;
   profileImageUrl?: string;
-  emailNotificationsEnabled?: boolean;
-  smsNotificationsEnabled?: boolean;
 }
 
 // Ticket management
