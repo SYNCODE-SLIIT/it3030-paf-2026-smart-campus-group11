@@ -4,7 +4,6 @@ import React from 'react';
 import { Copy, Mail, Search, Trash2, UserPlus, X } from 'lucide-react';
 
 import { useAuth } from '@/components/providers/AuthProvider';
-import { useToast } from '@/components/providers/ToastProvider';
 import { AdminConfirmDialog } from '@/components/screens/admin/AdminConfirmDialog';
 import { CreateUserPanel } from '@/components/screens/admin/CreateUserPanel';
 import { UserStatsGrid } from '@/components/screens/admin/UserStatsGrid';
@@ -23,11 +22,16 @@ type PendingUserAction = {
   user: UserResponse;
 } | null;
 
+type ActionNotice = {
+  variant: 'error' | 'success' | 'warning' | 'info' | 'neutral';
+  title: string;
+  message: string;
+} | null;
+
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 export function AdminUsersScreen({ currentUser }: { currentUser?: UserResponse }) {
   const { session, appUser } = useAuth();
-  const { showToast } = useToast();
   const resolvedUser = currentUser ?? appUser ?? null;
   const accessToken = session?.access_token ?? null;
 
@@ -44,6 +48,7 @@ export function AdminUsersScreen({ currentUser }: { currentUser?: UserResponse }
   const [pendingUserAction, setPendingUserAction] = React.useState<PendingUserAction>(null);
   const [reinvitingUserId, setReinvitingUserId] = React.useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = React.useState<string | null>(null);
+  const [actionNotice, setActionNotice] = React.useState<ActionNotice>(null);
   const [isCopyingLink, startCopyLinkTransition] = React.useTransition();
 
   const reloadUsers = React.useCallback(async () => {
@@ -93,21 +98,21 @@ export function AdminUsersScreen({ currentUser }: { currentUser?: UserResponse }
     startCopyLinkTransition(async () => {
       try {
         await navigator.clipboard.writeText(createdInvite.link);
-        showToast('success', 'Copied', 'Access link copied to clipboard.');
+        setActionNotice({ variant: 'success', title: 'Copied', message: 'Access link copied to clipboard.' });
       } catch {
-        showToast('error', 'Copy failed', 'Could not copy the access link.');
+        setActionNotice({ variant: 'error', title: 'Copy failed', message: 'Could not copy the access link.' });
       }
     });
   }
 
   async function handleReinviteUser(targetUser: UserResponse) {
     if (!accessToken) {
-      showToast('error', 'Session unavailable', 'Please sign in again.');
+      setActionNotice({ variant: 'error', title: 'Session unavailable', message: 'Please sign in again.' });
       return;
     }
 
     if (targetUser.accountStatus === 'SUSPENDED') {
-      showToast('warning', 'Action blocked', 'Suspended users cannot receive new links.');
+      setActionNotice({ variant: 'warning', title: 'Action blocked', message: 'Suspended users cannot receive new links.' });
       return;
     }
 
@@ -116,9 +121,9 @@ export function AdminUsersScreen({ currentUser }: { currentUser?: UserResponse }
       await resendInvite(accessToken, targetUser.id);
       const refreshed = await getUser(accessToken, targetUser.id);
       setUsers((current) => current.map((user) => (user.id === refreshed.id ? refreshed : user)));
-      showToast('success', 'Email sent', `A fresh sign-in email was sent to ${targetUser.email}.`);
+      setActionNotice({ variant: 'success', title: 'Email sent', message: `A fresh sign-in email was sent to ${targetUser.email}.` });
     } catch (error) {
-      showToast('error', 'Email send failed', getErrorMessage(error, 'We could not send a new sign-in email.'));
+      setActionNotice({ variant: 'error', title: 'Email send failed', message: getErrorMessage(error, 'We could not send a new sign-in email.') });
     } finally {
       setReinvitingUserId(null);
     }
@@ -126,12 +131,12 @@ export function AdminUsersScreen({ currentUser }: { currentUser?: UserResponse }
 
   async function handleDeleteUser(targetUser: UserResponse) {
     if (!accessToken) {
-      showToast('error', 'Session unavailable', 'Please sign in again.');
+      setActionNotice({ variant: 'error', title: 'Session unavailable', message: 'Please sign in again.' });
       return;
     }
 
     if (resolvedUser?.id === targetUser.id) {
-      showToast('warning', 'Action blocked', 'You cannot delete your own account.');
+      setActionNotice({ variant: 'warning', title: 'Action blocked', message: 'You cannot delete your own account.' });
       return;
     }
 
@@ -139,9 +144,9 @@ export function AdminUsersScreen({ currentUser }: { currentUser?: UserResponse }
     try {
       await deleteUser(accessToken, targetUser.id);
       setUsers((current) => current.filter((user) => user.id !== targetUser.id));
-      showToast('success', 'User deleted', `${targetUser.email} was removed.`);
+      setActionNotice({ variant: 'success', title: 'User deleted', message: `${targetUser.email} was removed.` });
     } catch (error) {
-      showToast('error', 'Delete failed', getErrorMessage(error, 'Could not delete this user.'));
+      setActionNotice({ variant: 'error', title: 'Delete failed', message: getErrorMessage(error, 'Could not delete this user.') });
     } finally {
       setDeletingUserId(null);
     }
@@ -249,6 +254,12 @@ export function AdminUsersScreen({ currentUser }: { currentUser?: UserResponse }
             Manage roles and account lifecycle — invite, deactivate, and remove users.
           </p>
         </div>
+
+        {actionNotice && (
+          <Alert variant={actionNotice.variant} title={actionNotice.title}>
+            {actionNotice.message}
+          </Alert>
+        )}
 
         {/* Stats */}
         <UserStatsGrid

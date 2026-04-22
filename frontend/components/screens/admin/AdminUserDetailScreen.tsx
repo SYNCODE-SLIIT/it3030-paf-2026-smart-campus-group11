@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { AdminConfirmDialog } from '@/components/screens/admin/AdminConfirmDialog';
 import { AuditLogTimeline } from '@/components/screens/admin/AuditLogTimeline';
-import { useToast } from '@/components/providers/ToastProvider';
 import { ProfileFields } from '@/components/screens/admin/ProfileFields';
 import { RoleRadioGroup } from '@/components/screens/admin/RoleRadioGroup';
 import { Alert, Avatar, Button, Card, Chip, Divider, Input, Select, Skeleton } from '@/components/ui';
@@ -53,6 +52,12 @@ import {
 } from '@/lib/user-display';
 
 type ConfirmAction = 'reinvite' | 'delete' | null;
+
+type ActionNotice = {
+  variant: 'error' | 'success' | 'warning' | 'info' | 'neutral';
+  title: string;
+  message: string;
+} | null;
 
 type DetailSection = {
   title: string;
@@ -243,7 +248,6 @@ function MetaItem({ label, value }: { label: string; value: React.ReactNode }) {
 export function AdminUserDetailScreen({ userId }: { userId: string }) {
   const router = useRouter();
   const { session, appUser } = useAuth();
-  const { showToast } = useToast();
   const accessToken = session?.access_token ?? null;
 
   const [user, setUser] = React.useState<UserResponse | null>(null);
@@ -267,6 +271,7 @@ export function AdminUserDetailScreen({ userId }: { userId: string }) {
   const [activityPage, setActivityPage] = React.useState(0);
   const [activityHasNext, setActivityHasNext] = React.useState(false);
   const [expandedActivityIds, setExpandedActivityIds] = React.useState<Set<string>>(new Set());
+  const [actionNotice, setActionNotice] = React.useState<ActionNotice>(null);
 
   const loadUser = React.useCallback(async () => {
     if (!accessToken) {
@@ -363,21 +368,21 @@ export function AdminUserDetailScreen({ userId }: { userId: string }) {
     startCopyTransition(async () => {
       try {
         await navigator.clipboard.writeText(user.lastInviteReference ?? '');
-        showToast('success', 'Copied', 'Access link copied to clipboard.');
+        setActionNotice({ variant: 'success', title: 'Copied', message: 'Access link copied to clipboard.' });
       } catch {
-        showToast('error', 'Copy failed', 'Could not copy the access link.');
+        setActionNotice({ variant: 'error', title: 'Copy failed', message: 'Could not copy the access link.' });
       }
     });
   }
 
   async function handleResendInvite() {
     if (!accessToken || !user) {
-      showToast('error', 'Session unavailable', 'Please sign in again.');
+      setActionNotice({ variant: 'error', title: 'Session unavailable', message: 'Please sign in again.' });
       return;
     }
 
     if (user.accountStatus === 'SUSPENDED') {
-      showToast('warning', 'Action blocked', 'Suspended users cannot receive new links.');
+      setActionNotice({ variant: 'warning', title: 'Action blocked', message: 'Suspended users cannot receive new links.' });
       return;
     }
 
@@ -387,9 +392,9 @@ export function AdminUserDetailScreen({ userId }: { userId: string }) {
         const refreshed = await getUser(accessToken, user.id);
         setUser(refreshed);
         void loadActivity(0, false);
-        showToast('success', 'Email sent', 'A fresh sign-in email was sent.');
+        setActionNotice({ variant: 'success', title: 'Email sent', message: 'A fresh sign-in email was sent.' });
       } catch (error) {
-        showToast('error', 'Email send failed', getErrorMessage(error, 'We could not send a new sign-in email.'));
+        setActionNotice({ variant: 'error', title: 'Email send failed', message: getErrorMessage(error, 'We could not send a new sign-in email.') });
       } finally {
         setConfirmAction(null);
       }
@@ -398,7 +403,7 @@ export function AdminUserDetailScreen({ userId }: { userId: string }) {
 
   async function handleSave() {
     if (!accessToken || !user) {
-      showToast('error', 'Session unavailable', 'Please sign in again.');
+      setActionNotice({ variant: 'error', title: 'Session unavailable', message: 'Please sign in again.' });
       return;
     }
 
@@ -432,31 +437,30 @@ export function AdminUserDetailScreen({ userId }: { userId: string }) {
         setUser(updated);
         void loadActivity(0, false);
         setIsEditing(false);
-        showToast('success', 'Saved', 'User profile and access details were updated.');
+        setActionNotice({ variant: 'success', title: 'Saved', message: 'User profile and access details were updated.' });
       } catch (error) {
-        showToast('error', 'Save failed', getErrorMessage(error, 'We could not save this user.'));
+        setActionNotice({ variant: 'error', title: 'Save failed', message: getErrorMessage(error, 'We could not save this user.') });
       }
     });
   }
 
   async function handleDelete() {
     if (!accessToken || !user) {
-      showToast('error', 'Session unavailable', 'Please sign in again.');
+      setActionNotice({ variant: 'error', title: 'Session unavailable', message: 'Please sign in again.' });
       return;
     }
 
     if (appUser?.id === user.id) {
-      showToast('warning', 'Action blocked', 'You cannot delete your own account.');
+      setActionNotice({ variant: 'warning', title: 'Action blocked', message: 'You cannot delete your own account.' });
       return;
     }
 
     startDeleteTransition(async () => {
       try {
         await deleteUser(accessToken, user.id);
-        showToast('success', 'User deleted', `${user.email} was removed.`);
         router.push(detailListPath(user));
       } catch (error) {
-        showToast('error', 'Delete failed', getErrorMessage(error, 'Could not delete this user.'));
+        setActionNotice({ variant: 'error', title: 'Delete failed', message: getErrorMessage(error, 'Could not delete this user.') });
       } finally {
         setConfirmAction(null);
       }
@@ -683,6 +687,11 @@ export function AdminUserDetailScreen({ userId }: { userId: string }) {
         </div>
       </div>
 
+      {actionNotice && (
+        <Alert variant={actionNotice.variant} title={actionNotice.title}>
+          {actionNotice.message}
+        </Alert>
+      )}
 
       <Card>
         <div className="admin-summary-card">

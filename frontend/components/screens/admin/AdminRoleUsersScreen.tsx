@@ -5,7 +5,6 @@ import { Copy, Eye, Search, UserPlus, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 import { useAuth } from '@/components/providers/AuthProvider';
-import { useToast } from '@/components/providers/ToastProvider';
 import { CreateUserPanel } from '@/components/screens/admin/CreateUserPanel';
 import { UserIdentityCell } from '@/components/screens/admin/UserIdentityCell';
 import { UserStatsGrid } from '@/components/screens/admin/UserStatsGrid';
@@ -42,6 +41,12 @@ import {
 type CreatedInviteState = {
   email: string;
   link: string;
+} | null;
+
+type ActionNotice = {
+  variant: 'error' | 'success' | 'warning' | 'info' | 'neutral';
+  title: string;
+  message: string;
 } | null;
 
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -153,7 +158,6 @@ function roleSpecificHeaders(userType: UserType) {
 export function AdminRoleUsersScreen({ userType }: { userType: UserType }) {
   const router = useRouter();
   const { session } = useAuth();
-  const { showToast } = useToast();
   const accessToken = session?.access_token ?? null;
   const config = roleConfig[userType];
 
@@ -165,6 +169,7 @@ export function AdminRoleUsersScreen({ userType }: { userType: UserType }) {
   const [loadError, setLoadError] = React.useState<string | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
   const [createdInvite, setCreatedInvite] = React.useState<CreatedInviteState>(null);
+  const [actionNotice, setActionNotice] = React.useState<ActionNotice>(null);
   const [isCopyingLink, startCopyLinkTransition] = React.useTransition();
 
   const reloadUsers = React.useCallback(async () => {
@@ -201,9 +206,9 @@ export function AdminRoleUsersScreen({ userType }: { userType: UserType }) {
     startCopyLinkTransition(async () => {
       try {
         await navigator.clipboard.writeText(createdInvite.link);
-        showToast('success', 'Copied', 'Access link copied to clipboard.');
+        setActionNotice({ variant: 'success', title: 'Copied', message: 'Access link copied to clipboard.' });
       } catch {
-        showToast('error', 'Copy failed', 'Could not copy the access link.');
+        setActionNotice({ variant: 'error', title: 'Copy failed', message: 'Could not copy the access link.' });
       }
     });
   }
@@ -292,6 +297,12 @@ export function AdminRoleUsersScreen({ userType }: { userType: UserType }) {
           pendingInvites={pendingInvites}
           newThisWeek={newThisWeek}
         />
+
+        {actionNotice && (
+          <Alert variant={actionNotice.variant} title={actionNotice.title}>
+            {actionNotice.message}
+          </Alert>
+        )}
 
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <div style={{ width: 240, maxWidth: '100%' }}>

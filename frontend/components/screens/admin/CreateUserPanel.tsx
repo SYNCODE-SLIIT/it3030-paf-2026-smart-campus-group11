@@ -6,7 +6,6 @@ import { UserPlus } from 'lucide-react';
 import { AdminConfirmDialog } from '@/components/screens/admin/AdminConfirmDialog';
 import { ProfileFields } from '@/components/screens/admin/ProfileFields';
 import { RoleRadioGroup } from '@/components/screens/admin/RoleRadioGroup';
-import { useToast } from '@/components/providers/ToastProvider';
 import { Alert, Button, Card, Input, Select } from '@/components/ui';
 import { createUser, getErrorMessage } from '@/lib/api-client';
 import type { CreateUserRequest, ManagerRole, UserResponse, UserType } from '@/lib/api-types';
@@ -41,7 +40,6 @@ export function CreateUserPanel({
   defaultUserType?: UserType;
   fixedUserType?: UserType;
 }) {
-  const { showToast } = useToast();
   const [email, setEmail] = React.useState('');
   const [userType, setUserType] = React.useState<UserType>(fixedUserType ?? defaultUserType);
   const [managerRole, setManagerRole] = React.useState<ManagerRole | ''>('');
@@ -49,6 +47,7 @@ export function CreateUserPanel({
   const [adminForm, setAdminForm] = React.useState(createEmptyAdminForm);
   const [managerForm, setManagerForm] = React.useState(createEmptyManagerForm);
   const [formError, setFormError] = React.useState<string | null>(null);
+  const [formSuccess, setFormSuccess] = React.useState<string | null>(null);
   const [pendingPayload, setPendingPayload] = React.useState<CreateUserRequest | null>(null);
   const [isCreating, startCreateTransition] = React.useTransition();
 
@@ -77,6 +76,7 @@ export function CreateUserPanel({
     }
 
     setFormError(null);
+    setFormSuccess(null);
 
     return {
       email: email.trim(),
@@ -106,7 +106,7 @@ export function CreateUserPanel({
       try {
         const createdUser = await createUser(accessToken, pendingPayload);
 
-        showToast('success', 'User created', createdUser.lastInviteReference
+        setFormSuccess(createdUser.lastInviteReference
           ? 'User added, sign-in email sent, and a test link was returned.'
           : 'User added and sign-in email sent.');
 
@@ -122,8 +122,8 @@ export function CreateUserPanel({
       } catch (error) {
         const message = getErrorMessage(error, 'We could not create the user.');
         setFormError(message);
+        setFormSuccess(null);
         setPendingPayload(null);
-        showToast('error', 'User creation failed', message);
       }
     });
   }
@@ -158,6 +158,12 @@ export function CreateUserPanel({
       {formError && (
         <Alert variant="error" title="Unable to create user" style={{ marginBottom: 16 }}>
           {formError}
+        </Alert>
+      )}
+
+      {formSuccess && (
+        <Alert variant="success" title="User created" style={{ marginBottom: 16 }}>
+          {formSuccess}
         </Alert>
       )}
 

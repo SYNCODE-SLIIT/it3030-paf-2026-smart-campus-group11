@@ -2,7 +2,7 @@ export type UserType = 'STUDENT' | 'FACULTY' | 'ADMIN' | 'MANAGER';
 
 export type AccountStatus = 'INVITED' | 'ACTIVE' | 'SUSPENDED';
 
-export type AuthDeliveryMethod = 'INVITE_EMAIL' | 'LOGIN_LINK_EMAIL';
+export type AuthDeliveryMethod = 'INVITE_EMAIL' | 'LOGIN_LINK_EMAIL' | 'PASSWORD_RECOVERY_EMAIL';
 
 export type ManagerRole = 'CATALOG_MANAGER' | 'BOOKING_MANAGER' | 'TICKET_MANAGER';
 

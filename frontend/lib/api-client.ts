@@ -278,6 +278,13 @@ export async function requestLoginLink(email: string) {
   });
 }
 
+export async function requestPasswordReset(email: string) {
+  return request<MessageResponse>('/api/auth/password-reset/request', {
+    method: 'POST',
+    body: { email },
+  });
+}
+
 export async function syncSession(accessToken: string) {
   return request<SessionSyncResponse>('/api/auth/session/sync', {
     method: 'POST',

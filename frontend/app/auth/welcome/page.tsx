@@ -10,11 +10,20 @@ import { Alert, Button, Card, Input } from '@/components/ui';
 import { getErrorMessage } from '@/lib/api-client';
 import { getPostAuthRedirect, needsStudentOnboarding } from '@/lib/auth-routing';
 import {
+  clearInviteFlowState,
+  clearPreservedInviteSession,
   isInviteExpectedEmailMatch,
   primeInviteFlowState,
+  preserveInviteSession,
   readInviteFlowState,
   resolveInviteExpectedEmail,
 } from '@/lib/invite-flow';
+import {
+  isRecoveryExpectedEmailMatch,
+  primeRecoveryFlowState,
+  readRecoveryFlowState,
+  resolveRecoveryExpectedEmail,
+} from '@/lib/recovery-flow';
 
 type NoticeState = {
   variant: 'error' | 'success' | 'warning' | 'info' | 'neutral';
@@ -56,7 +65,7 @@ function MicrosoftLogo({ size = 16 }: { size?: number }) {
   );
 }
 
-function inviteReasonNotice(reason: string | null, remainingAttempts: number | null) {
+function authReasonNotice(reason: string | null, remainingAttempts: number | null, flow: 'invite' | 'recovery') {
   switch (reason) {
     case 'wrong_account':
       return {
@@ -64,8 +73,8 @@ function inviteReasonNotice(reason: string | null, remainingAttempts: number | n
         title: 'Wrong account selected',
         message:
           remainingAttempts && remainingAttempts > 0
-            ? `Please choose the invited account. ${remainingAttempts} tries left.`
-            : 'Please choose the invited account.',
+            ? `Please choose the ${flow === 'recovery' ? 'recovery' : 'invited'} account. ${remainingAttempts} tries left.`
+            : `Please choose the ${flow === 'recovery' ? 'recovery' : 'invited'} account.`,
       };
     case 'switch_account':
       return {
@@ -76,20 +85,34 @@ function inviteReasonNotice(reason: string | null, remainingAttempts: number | n
     case 'invite_expired':
       return {
         variant: 'warning' as const,
-        title: 'Invite link expired',
-        message: 'This invite link is invalid or has expired. Ask an administrator to send a new invite email.',
+        title: flow === 'recovery' ? 'Recovery link expired' : 'Invite link expired',
+        message: flow === 'recovery'
+          ? 'This recovery link is invalid or has expired. Request a new password reset email from the login page.'
+          : 'This invite link is invalid or has expired. Ask an administrator to send a new invite email.',
+      };
+    case 'recovery_expired':
+      return {
+        variant: 'warning' as const,
+        title: 'Recovery link expired',
+        message: 'This recovery link is invalid or has expired. Request a new password reset email from the login page.',
       };
     case 'access_denied':
       return {
         variant: 'error' as const,
         title: 'Access denied',
-        message: 'This account cannot use this invite.',
+        message:
+          flow === 'recovery'
+            ? 'This account cannot use this reset link. Request a new password reset email from the login page.'
+            : 'This account cannot use this invite. Ask an administrator to send a new invite.',
       };
     case 'auth_failed':
       return {
         variant: 'error' as const,
-        title: 'Invite validation failed',
-        message: 'The invite callback could not be completed. Please open the invite link again.',
+        title: flow === 'recovery' ? 'We could not verify this reset link' : 'We could not verify this link',
+        message:
+          flow === 'recovery'
+            ? 'This reset link may be expired or already used. Request a new password reset email from the login page.'
+            : 'This invite link may be expired or already used. Ask an administrator to send a new invite.',
       };
     case 'provider_email_missing':
       return {
@@ -101,8 +124,10 @@ function inviteReasonNotice(reason: string | null, remainingAttempts: number | n
     case 'auth_required':
       return {
         variant: 'warning' as const,
-        title: 'Invite session required',
-        message: 'Your invite session is not active. Re-open the invite link from your email.',
+        title: flow === 'recovery' ? 'Recovery session required' : 'Invite session required',
+        message: flow === 'recovery'
+          ? 'Your recovery session is not active. Re-open the reset link from your email.'
+          : 'Your invite session is not active. Re-open the invite link from your email.',
       };
     default:
       return null;
@@ -113,7 +138,10 @@ function AuthWelcomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { appUser, loading, refreshMe, session, signInWithGoogle, signInWithMicrosoft } = useAuth();
+  const flow = searchParams.get('flow') === 'recovery' ? 'recovery' : 'invite';
+  const isRecoveryFlow = flow === 'recovery';
   const reason = searchParams.get('reason');
+  const isLinkExpired = reason === 'invite_expired' || reason === 'recovery_expired';
   const inviteEmailHint = searchParams.get('email');
   const remainingAttempts = React.useMemo(() => {
     const value = searchParams.get('remaining');
@@ -125,8 +153,8 @@ function AuthWelcomeContent() {
     return Number.isFinite(parsed) ? parsed : null;
   }, [searchParams]);
   const initialReasonNotice = React.useMemo(
-    () => inviteReasonNotice(reason, remainingAttempts),
-    [reason, remainingAttempts],
+    () => authReasonNotice(reason, remainingAttempts, flow),
+    [flow, reason, remainingAttempts],
   );
   const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
   const [isMicrosoftLoading, setIsMicrosoftLoading] = React.useState(false);
@@ -135,6 +163,7 @@ function AuthWelcomeContent() {
   const [isPasswordRedirecting, setIsPasswordRedirecting] = React.useState(false);
   const [lastHydratedSessionUserId, setLastHydratedSessionUserId] = React.useState<string | null>(null);
   const [inviteFlowState, setInviteFlowState] = React.useState(() => readInviteFlowState());
+  const [recoveryFlowState, setRecoveryFlowState] = React.useState(() => readRecoveryFlowState());
 
   React.useEffect(() => {
     setNotice(initialReasonNotice);
@@ -142,10 +171,11 @@ function AuthWelcomeContent() {
 
   React.useEffect(() => {
     setInviteFlowState(readInviteFlowState());
-  }, [reason]);
+    setRecoveryFlowState(readRecoveryFlowState());
+  }, [flow, reason]);
 
   React.useEffect(() => {
-    if (reason && reason !== 'switch_account') {
+    if (isRecoveryFlow || (reason && reason !== 'switch_account')) {
       return;
     }
 
@@ -159,23 +189,89 @@ function AuthWelcomeContent() {
         resetWrongAccountAttempts: Boolean(inviteEmailHint),
       }),
     );
-  }, [appUser?.email, inviteEmailHint, inviteFlowState?.expectedEmail, reason]);
+  }, [appUser?.email, inviteEmailHint, inviteFlowState?.expectedEmail, isRecoveryFlow, reason]);
+
+  React.useEffect(() => {
+    if (!isRecoveryFlow) {
+      return;
+    }
+
+    const recoveryEmail = resolveRecoveryExpectedEmail(inviteEmailHint, recoveryFlowState?.expectedEmail, appUser?.email);
+    if (!recoveryEmail) {
+      return;
+    }
+
+    setRecoveryFlowState(primeRecoveryFlowState(recoveryEmail));
+  }, [appUser?.email, inviteEmailHint, isRecoveryFlow, recoveryFlowState?.expectedEmail]);
 
   const expectedInviteEmail = resolveInviteExpectedEmail(
     inviteFlowState?.expectedEmail,
     inviteEmailHint,
     appUser?.email,
   );
+  const expectedRecoveryEmail = resolveRecoveryExpectedEmail(
+    recoveryFlowState?.expectedEmail,
+    inviteEmailHint,
+    appUser?.email,
+  );
+  const expectedAuthEmail = isRecoveryFlow ? expectedRecoveryEmail : expectedInviteEmail;
   const mismatchedInviteSession =
+    !isRecoveryFlow &&
     !!expectedInviteEmail &&
     !!session?.user?.email &&
     !isInviteExpectedEmailMatch(expectedInviteEmail, session.user.email);
   const mismatchedInviteAppUser =
-    !!expectedInviteEmail && !!appUser?.email && !isInviteExpectedEmailMatch(expectedInviteEmail, appUser.email);
+    !isRecoveryFlow &&
+    !!expectedInviteEmail &&
+    !!appUser?.email &&
+    !isInviteExpectedEmailMatch(expectedInviteEmail, appUser.email);
+  const mismatchedRecoverySession =
+    isRecoveryFlow &&
+    !!expectedRecoveryEmail &&
+    !!session?.user?.email &&
+    !isRecoveryExpectedEmailMatch(expectedRecoveryEmail, session.user.email);
+  const mismatchedRecoveryAppUser =
+    isRecoveryFlow &&
+    !!expectedRecoveryEmail &&
+    !!appUser?.email &&
+    !isRecoveryExpectedEmailMatch(expectedRecoveryEmail, appUser.email);
+  const inviteSessionMatchesExpected =
+    !isRecoveryFlow &&
+    !!expectedInviteEmail &&
+    !!session?.user?.email &&
+    isInviteExpectedEmailMatch(expectedInviteEmail, session.user.email);
+  const recoverySessionMatchesExpected =
+    isRecoveryFlow &&
+    !!expectedRecoveryEmail &&
+    !!session?.user?.email &&
+    isRecoveryExpectedEmailMatch(expectedRecoveryEmail, session.user.email);
+  const shouldBlockForMismatchedInviteAppUser = mismatchedInviteAppUser && !inviteSessionMatchesExpected;
+  const shouldBlockForMismatchedRecoveryAppUser = mismatchedRecoveryAppUser && !recoverySessionMatchesExpected;
+  const hasWrongInviteAccountNotice = reason === 'wrong_account';
   const requiresAccountSwitch =
-    !!session && (reason === 'switch_account' || mismatchedInviteSession || mismatchedInviteAppUser);
-  const shouldHidePasswordSetup = !!session && requiresAccountSwitch;
-  const hasInviteContext = !!(session || expectedInviteEmail || inviteEmailHint);
+    !isRecoveryFlow &&
+    !!session &&
+    (reason === 'switch_account' ||
+      (!hasWrongInviteAccountNotice && (mismatchedInviteSession || shouldBlockForMismatchedInviteAppUser)));
+  const shouldHidePasswordSetup =
+    !!session &&
+    (requiresAccountSwitch ||
+      mismatchedInviteSession ||
+      shouldBlockForMismatchedInviteAppUser ||
+      mismatchedRecoverySession ||
+      shouldBlockForMismatchedRecoveryAppUser);
+  const hasInviteContext = !!(session || expectedAuthEmail || inviteEmailHint);
+  const sessionMatchesExpectedEmail =
+    !!session?.user?.email &&
+    (!expectedAuthEmail ||
+      (isRecoveryFlow
+        ? isRecoveryExpectedEmailMatch(expectedAuthEmail, session.user.email)
+        : isInviteExpectedEmailMatch(expectedAuthEmail, session.user.email)));
+  const shouldSuppressStaleCallbackNotice =
+    sessionMatchesExpectedEmail && (reason === 'auth_failed' || reason === 'access_denied');
+  const visibleNotice = shouldSuppressStaleCallbackNotice
+    ? null
+    : (notice ?? (requiresAccountSwitch ? authReasonNotice('switch_account', null, flow) : null));
 
   React.useEffect(() => {
     if (loading || !session?.user?.id) {
@@ -195,7 +291,9 @@ function AuthWelcomeContent() {
     void refreshMe().finally(() => setIsHydratingUser(false));
   }, [appUser, isHydratingUser, lastHydratedSessionUserId, loading, refreshMe, session]);
 
-  const displayEmail = expectedInviteEmail ?? session?.user?.email ?? appUser?.email ?? 'Invited account';
+  const displayEmail = expectedAuthEmail ?? session?.user?.email ?? appUser?.email ?? (
+    isRecoveryFlow ? 'Recovery account' : 'Invited account'
+  );
 
   if (loading || isHydratingUser) {
     return (
@@ -231,10 +329,18 @@ function AuthWelcomeContent() {
   }
 
   if (!hasInviteContext) {
-    const emptyInviteTitle = reason === 'invite_expired' ? 'Invite link expired' : 'Invite session required';
-    const emptyInviteMessage = reason === 'invite_expired'
-      ? 'This link can no longer be used. Ask an administrator to send a new invite email.'
-      : 'Open the generated invite link from your email to continue onboarding.';
+    const emptyInviteTitle = isRecoveryFlow
+      ? reason === 'recovery_expired' || reason === 'invite_expired'
+        ? 'Recovery link expired'
+        : 'Recovery session required'
+      : reason === 'invite_expired'
+        ? 'Invite link expired'
+        : 'Invite session required';
+    const emptyInviteMessage = isRecoveryFlow
+      ? 'Open the password reset link from your email, or request a new reset link from the login page.'
+      : reason === 'invite_expired'
+        ? 'This link can no longer be used. Ask an administrator to send a new invite email.'
+        : 'Open the generated invite link from your email to continue onboarding.';
 
     return (
       <div
@@ -261,9 +367,9 @@ function AuthWelcomeContent() {
             >
               {emptyInviteTitle}
             </p>
-            {notice && (
-              <Alert variant={notice.variant} title={notice.title}>
-                {notice.message}
+            {visibleNotice && (
+              <Alert variant={visibleNotice.variant} title={visibleNotice.title}>
+                {visibleNotice.message}
               </Alert>
             )}
             <p style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--text-body)' }}>
@@ -284,6 +390,7 @@ function AuthWelcomeContent() {
     const query = params.toString();
     return query ? `/auth/welcome?${query}` : '/auth/welcome';
   })();
+  const shouldShowStandaloneProviderActions = !isLinkExpired && (!session || shouldHidePasswordSetup);
 
   function handleSwitchAccount() {
     setNotice({
@@ -309,8 +416,18 @@ function AuthWelcomeContent() {
     setIsGoogleLoading(true);
 
     try {
+      if (isRecoveryFlow) {
+        const recoveryEmail = resolveRecoveryExpectedEmail(expectedRecoveryEmail, displayEmail);
+        setRecoveryFlowState(primeRecoveryFlowState(recoveryEmail));
+        await signInWithGoogle({ flow: 'recovery' });
+        return;
+      }
+
       const inviteEmail = resolveInviteExpectedEmail(expectedInviteEmail, displayEmail);
-      setInviteFlowState(primeInviteFlowState(inviteEmail, { resetWrongAccountAttempts: true }));
+      if (session?.access_token && session.refresh_token && !mismatchedInviteSession) {
+        preserveInviteSession(session);
+      }
+      setInviteFlowState(primeInviteFlowState(inviteEmail));
       await signInWithGoogle({ flow: 'invite' });
     } catch (error) {
       setNotice({
@@ -336,8 +453,18 @@ function AuthWelcomeContent() {
     setIsMicrosoftLoading(true);
 
     try {
+      if (isRecoveryFlow) {
+        const recoveryEmail = resolveRecoveryExpectedEmail(expectedRecoveryEmail, displayEmail);
+        setRecoveryFlowState(primeRecoveryFlowState(recoveryEmail));
+        await signInWithMicrosoft({ flow: 'recovery' });
+        return;
+      }
+
       const inviteEmail = resolveInviteExpectedEmail(expectedInviteEmail, displayEmail);
-      setInviteFlowState(primeInviteFlowState(inviteEmail, { resetWrongAccountAttempts: true }));
+      if (session?.access_token && session.refresh_token && !mismatchedInviteSession) {
+        preserveInviteSession(session);
+      }
+      setInviteFlowState(primeInviteFlowState(inviteEmail));
       await signInWithMicrosoft({ flow: 'invite' });
     } catch (error) {
       setNotice({
@@ -372,6 +499,10 @@ function AuthWelcomeContent() {
 
       const nextStep = needsStudentOnboarding(resolvedUser) ? 'ONBOARDING' : 'DASHBOARD';
       const nextPath = getPostAuthRedirect(resolvedUser, nextStep);
+      if (!isRecoveryFlow) {
+        clearInviteFlowState();
+        clearPreservedInviteSession();
+      }
       router.replace(nextPath);
     } catch (error) {
       setNotice({
@@ -704,52 +835,69 @@ function AuthWelcomeContent() {
         <section className="welcome-auth-panel">
           <div className={`welcome-banner ${session ? '' : 'warning'}`}>
             <ShieldCheck size={15} />
-            {session ? 'Secure Link Verified' : 'Invite Link Ready'}
+            {session
+              ? isRecoveryFlow ? 'Recovery Link Verified' : 'Secure Link Verified'
+              : isRecoveryFlow ? 'Recovery Link Ready' : 'Invite Link Ready'}
           </div>
 
           <div className="welcome-heading">
-            <h1>Finalize Account</h1>
-            <p>Set your master password to activate secure access for your invited account.</p>
+            <h1>{isRecoveryFlow ? 'Reset Password' : 'Finalize Account'}</h1>
+            <p>
+              {isRecoveryFlow
+                ? 'Your secure recovery link is verified. Set a new password or continue with your Google or Microsoft account.'
+                : 'Set your password to activate secure access for your invited account.'}
+            </p>
           </div>
 
           <Input
-            label="Academic Email Address"
+            label={isRecoveryFlow ? 'Account Email Address' : 'Academic Email Address'}
             value={displayEmail}
             readOnly
             disabled
             iconLeft={<Mail size={15} />}
           />
 
-          {session && !shouldHidePasswordSetup ? (
-            <PasswordSetupCard
-              compact
-              title="Create Master Password"
-              description="Use an industry-standard password to protect this portal account."
-              onPasswordSaved={handlePasswordSaved}
-              policyPortalTargetId="welcome-password-policy-host"
-              policyVisualStyle="overlay"
-            />
-          ) : null}
-
-          {notice && (
-            <Alert variant={notice.variant} title={notice.title}>
-              {notice.message}
+          {visibleNotice && (
+            <Alert variant={visibleNotice.variant} title={visibleNotice.title}>
+              {visibleNotice.message}
             </Alert>
           )}
 
-          {requiresAccountSwitch ? (
-            <Alert variant="warning" title="Switch account required">
-              You are currently signed in with another account. Switch account first, then continue invite authentication.
+          {session && !shouldHidePasswordSetup && !isLinkExpired ? (
+            <PasswordSetupCard
+              compact
+              title={isRecoveryFlow ? 'Set New Password' : 'Create Password'}
+              description={
+                isRecoveryFlow
+                  ? 'Choose a new password for email sign-in, or continue below with Google or Microsoft.'
+                  : 'Use an industry-standard password to protect this portal account, or continue below with Google or Microsoft.'
+              }
+              onPasswordSaved={handlePasswordSaved}
+              policyPortalTargetId="welcome-password-policy-host"
+              policyVisualStyle="overlay"
+              submitLabel={isRecoveryFlow ? 'Update Password' : 'Activate Account'}
+              showProviderActions
+              providerActionsDisabled={isPasswordRedirecting}
+              isGoogleLoading={isGoogleLoading}
+              isMicrosoftLoading={isMicrosoftLoading}
+              onGoogleSignIn={() => {
+                void handleGoogleSignIn();
+              }}
+              onMicrosoftSignIn={() => {
+                void handleMicrosoftSignIn();
+              }}
+            />
+          ) : null}
+
+          {!session && !visibleNotice ? (
+            <Alert variant="info" title="Verify this account">
+              {isRecoveryFlow
+                ? 'Continue with Google or Microsoft using this email, or reopen the reset link from your email. Password setup appears after secure verification.'
+                : 'Continue with Google or Microsoft using this email, or reopen the invite link from your email. Password setup appears after secure verification.'}
             </Alert>
           ) : null}
 
-          {!session ? (
-            <Alert variant="info" title="Authentication required">
-              Continue with Google or Microsoft sign-in below. Password setup will appear after invite authentication is complete.
-            </Alert>
-          ) : null}
-
-          {!appUser && session && !shouldHidePasswordSetup ? (
+          {!appUser && session && !shouldHidePasswordSetup && !visibleNotice ? (
             <Alert variant="warning" title="Profile still loading">
               Your invite session is active, but profile sync is still running. Wait a moment, or continue with Google or Microsoft sign-in.
             </Alert>
@@ -766,59 +914,63 @@ function AuthWelcomeContent() {
             </Button>
           ) : null}
 
-          <div className="welcome-divider">
-            <span />
-            <p>OR SIGN IN WITH</p>
-            <span />
-          </div>
+          {shouldShowStandaloneProviderActions ? (
+            <>
+              <div className="welcome-divider">
+                <span />
+                <p>OR SIGN IN WITH</p>
+                <span />
+              </div>
 
-          <div className="welcome-auth-actions">
-            <div className="welcome-auth-provider-grid">
-              <Button
-                variant="subtle"
-                size="md"
-                loading={isGoogleLoading}
-                disabled={isMicrosoftLoading || isPasswordRedirecting || requiresAccountSwitch}
-                iconLeft={<GoogleLogo size={18} />}
-                onClick={() => {
-                  void handleGoogleSignIn();
-                }}
-                style={{
-                  background: 'var(--surface)',
-                  color: 'var(--text-h)',
-                  border: '1px solid var(--border-strong)',
-                  textTransform: 'none',
-                  letterSpacing: '0.01em',
-                }}
-              >
-                Google
-              </Button>
-              <Button
-                variant="subtle"
-                size="md"
-                loading={isMicrosoftLoading}
-                disabled={isGoogleLoading || isPasswordRedirecting || requiresAccountSwitch}
-                iconLeft={<MicrosoftLogo size={18} />}
-                onClick={() => {
-                  void handleMicrosoftSignIn();
-                }}
-                style={{
-                  background: 'var(--surface)',
-                  color: 'var(--text-h)',
-                  border: '1px solid var(--border-strong)',
-                  textTransform: 'none',
-                  letterSpacing: '0.01em',
-                }}
-              >
-                Microsoft
-              </Button>
-            </div>
+              <div className="welcome-auth-actions">
+                <div className="welcome-auth-provider-grid">
+                  <Button
+                    variant="subtle"
+                    size="md"
+                    loading={isGoogleLoading}
+                    disabled={isMicrosoftLoading || isPasswordRedirecting || requiresAccountSwitch}
+                    iconLeft={<GoogleLogo size={18} />}
+                    onClick={() => {
+                      void handleGoogleSignIn();
+                    }}
+                    style={{
+                      background: 'var(--surface)',
+                      color: 'var(--text-h)',
+                      border: '1px solid var(--border-strong)',
+                      textTransform: 'none',
+                      letterSpacing: '0.01em',
+                    }}
+                  >
+                    Google
+                  </Button>
+                  <Button
+                    variant="subtle"
+                    size="md"
+                    loading={isMicrosoftLoading}
+                    disabled={isGoogleLoading || isPasswordRedirecting || requiresAccountSwitch}
+                    iconLeft={<MicrosoftLogo size={18} />}
+                    onClick={() => {
+                      void handleMicrosoftSignIn();
+                    }}
+                    style={{
+                      background: 'var(--surface)',
+                      color: 'var(--text-h)',
+                      border: '1px solid var(--border-strong)',
+                      textTransform: 'none',
+                      letterSpacing: '0.01em',
+                    }}
+                  >
+                    Microsoft
+                  </Button>
+                </div>
 
-            <p className="welcome-terms">
-              By continuing, you agree to our <a href="#">Institutional Security Terms</a> and{' '}
-              <a href="#">Data Governance Policy</a>.
-            </p>
-          </div>
+                <p className="welcome-terms">
+                  By continuing, you agree to our <a href="#">Institutional Security Terms</a> and{' '}
+                  <a href="#">Data Governance Policy</a>.
+                </p>
+              </div>
+            </>
+          ) : null}
         </section>
       </div>
     </div>

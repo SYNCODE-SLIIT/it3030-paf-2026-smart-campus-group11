@@ -4,9 +4,27 @@ export interface InviteFlowState {
   updatedAt: number;
 }
 
+export interface PreservedInviteSession {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number | null;
+  email: string | null;
+  updatedAt: number;
+}
+
 export const MAX_INVITE_WRONG_ACCOUNT_ATTEMPTS = 3;
 
 const INVITE_FLOW_STORAGE_KEY = 'smart-campus.invite-flow';
+const INVITE_SESSION_STORAGE_KEY = 'smart-campus.invite-session';
+
+interface InviteSessionCandidate {
+  access_token?: string | null;
+  refresh_token?: string | null;
+  expires_at?: number | null;
+  user?: {
+    email?: string | null;
+  } | null;
+}
 
 function normalizeEmail(email: string | null | undefined) {
   return email?.trim().toLowerCase() ?? null;
@@ -92,6 +110,61 @@ export function clearInviteFlowState() {
   }
 
   window.sessionStorage.removeItem(INVITE_FLOW_STORAGE_KEY);
+}
+
+export function preserveInviteSession(session: InviteSessionCandidate | null | undefined) {
+  if (!canUseSessionStorage() || !session?.access_token || !session.refresh_token) {
+    return null;
+  }
+
+  const preservedSession: PreservedInviteSession = {
+    accessToken: session.access_token,
+    refreshToken: session.refresh_token,
+    expiresAt: typeof session.expires_at === 'number' ? session.expires_at : null,
+    email: normalizeEmail(session.user?.email),
+    updatedAt: Date.now(),
+  };
+
+  window.sessionStorage.setItem(INVITE_SESSION_STORAGE_KEY, JSON.stringify(preservedSession));
+  return preservedSession;
+}
+
+export function readPreservedInviteSession(): PreservedInviteSession | null {
+  if (!canUseSessionStorage()) {
+    return null;
+  }
+
+  try {
+    const rawValue = window.sessionStorage.getItem(INVITE_SESSION_STORAGE_KEY);
+    if (!rawValue) {
+      return null;
+    }
+
+    const parsed = JSON.parse(rawValue) as Partial<PreservedInviteSession>;
+    if (!parsed.accessToken || !parsed.refreshToken) {
+      return null;
+    }
+
+    return {
+      accessToken: parsed.accessToken,
+      refreshToken: parsed.refreshToken,
+      expiresAt: typeof parsed.expiresAt === 'number' ? parsed.expiresAt : null,
+      email: normalizeEmail(parsed.email),
+      updatedAt: typeof parsed.updatedAt === 'number' && Number.isFinite(parsed.updatedAt)
+        ? parsed.updatedAt
+        : Date.now(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function clearPreservedInviteSession() {
+  if (!canUseSessionStorage()) {
+    return;
+  }
+
+  window.sessionStorage.removeItem(INVITE_SESSION_STORAGE_KEY);
 }
 
 export function isInviteFlowEmailMatch(expectedState: InviteFlowState | null, email: string | null | undefined) {
