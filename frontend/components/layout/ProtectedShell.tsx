@@ -74,22 +74,10 @@ function getDefaultSections(workspace: Exclude<WorkspaceKind, 'auto'>, user?: Us
               href: '/admin/users',
               allowedUserTypes: ['ADMIN'],
             },
-            {
-              label: 'Catalogue Management',
-              icon: BookOpen,
-              href: '/admin/resources',
-              allowedUserTypes: ['ADMIN'],
-            },
-            {
-              label: 'Buildings Management',
-              icon: BookOpen,
-              href: '/admin/buildings',
-              allowedUserTypes: ['ADMIN'],
-            },
           ],
         },
         {
-          title: 'Manage',
+          title: 'Users',
           items: [
             {
               label: 'Students',
@@ -113,6 +101,23 @@ function getDefaultSections(workspace: Exclude<WorkspaceKind, 'auto'>, user?: Us
               label: 'Admins',
               icon: ShieldCheck,
               href: '/admin/admins',
+              allowedUserTypes: ['ADMIN'],
+            },
+          ],
+        },
+        {
+          title: 'Manage',
+          items: [
+            {
+              label: 'Catalogue',
+              icon: BookOpen,
+              href: '/admin/resources',
+              allowedUserTypes: ['ADMIN'],
+            },
+            {
+              label: 'Buildings',
+              icon: BookOpen,
+              href: '/admin/buildings',
               allowedUserTypes: ['ADMIN'],
             },
             {

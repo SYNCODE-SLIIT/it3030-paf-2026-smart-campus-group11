@@ -7,8 +7,8 @@ import { useAuth } from '@/components/providers/AuthProvider';
 import { AdminConfirmDialog } from '@/components/screens/admin/AdminConfirmDialog';
 import { CreateUserPanel } from '@/components/screens/admin/CreateUserPanel';
 import { UserStatsGrid } from '@/components/screens/admin/UserStatsGrid';
-import { UserTableCard, type RoleTab } from '@/components/screens/admin/UserTableCard';
-import { Alert, Button, Card, Input, Skeleton, Textarea } from '@/components/ui';
+import { UserTableCard, roleTabs, type RoleTab } from '@/components/screens/admin/UserTableCard';
+import { Alert, Button, Card, Input, Skeleton, Tabs, Textarea } from '@/components/ui';
 import { deleteUser, getErrorMessage, getUser, listUsers, resendInvite } from '@/lib/api-client';
 import type { AccountStatus, UserResponse } from '@/lib/api-types';
 
@@ -269,6 +269,14 @@ export function AdminUsersScreen({ currentUser }: { currentUser?: UserResponse }
           newThisWeek={newThisWeek}
         />
 
+        {/* Role tabs */}
+        <Tabs
+          variant="pill"
+          tabs={roleTabs.map((t) => ({ value: t.value, label: t.label }))}
+          value={roleTab}
+          onChange={(v) => setRoleTab(v as RoleTab)}
+        />
+
         {/* Toolbar */}
         <div
           style={{
@@ -310,7 +318,6 @@ export function AdminUsersScreen({ currentUser }: { currentUser?: UserResponse }
           loading={loadingUsers}
           error={loadError}
           roleTab={roleTab}
-          onRoleTabChange={setRoleTab}
           statusFilter={statusFilter}
           onStatusFilterChange={setStatusFilter}
           onReinviteUser={(user) => {
