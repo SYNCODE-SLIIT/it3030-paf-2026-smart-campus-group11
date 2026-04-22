@@ -120,7 +120,7 @@ class ResourceServiceTest extends AbstractPostgresIntegrationTest {
     void updateResourceReplacesNormalizedRelationshipsAndMirrorsLegacyFields() {
         ResourceType originalType = seedResourceType("GENERAL_RESOURCE", "General Resource", ResourceCategory.GENERAL_UTILITY);
         Location originalLocation = seedLocation("Old Location");
-        ResourceType replacementType = seedResourceType("LECTURE_HALL", "Lecture Hall", ResourceCategory.SPACES);
+        ResourceType replacementType = seedResourceType("LECTURE_HALL", "Lecture Hall", ResourceCategory.SPACES, false, true);
         Location replacementLocation = seedLocation("New Location");
         seedFeature("AIR_CONDITIONING", "Air Conditioning");
         seedFeature("MICROPHONE", "Microphone");
@@ -198,6 +198,16 @@ class ResourceServiceTest extends AbstractPostgresIntegrationTest {
     }
 
     private ResourceType seedResourceType(String code, String name, ResourceCategory category) {
+        return seedResourceType(code, name, category, true, false);
+    }
+
+    private ResourceType seedResourceType(
+        String code,
+        String name,
+        ResourceCategory category,
+        boolean bookableDefault,
+        boolean movableDefault
+    ) {
         return resourceTypeRepository.findByCodeIgnoreCase(code)
             .orElseGet(() -> {
                 ResourceType resourceType = new ResourceType();
@@ -205,8 +215,8 @@ class ResourceServiceTest extends AbstractPostgresIntegrationTest {
                 resourceType.setName(name);
                 resourceType.setCategory(category);
                 resourceType.setDescription(name + " type");
-                resourceType.setBookableDefault(true);
-                resourceType.setMovableDefault(false);
+                resourceType.setBookableDefault(bookableDefault);
+                resourceType.setMovableDefault(movableDefault);
                 return resourceTypeRepository.save(resourceType);
             });
     }

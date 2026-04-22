@@ -81,12 +81,16 @@ public class ResourceService {
         ResourceEntity resource = resourceMapper.toEntity(request);
         ResourceType resourceType = requireResourceType(request.resourceTypeId());
         Location location = request.locationId() == null ? null : requireLocation(request.locationId());
+        Integer normalizedCapacity = resourceType.isCapacityEnabled() ? request.capacity() : null;
+        Integer normalizedQuantity = resourceType.isQuantityEnabled() ? request.quantity() : null;
+        LocalTime normalizedAvailableFrom = resourceType.isAvailabilityEnabled() ? request.availableFrom() : null;
+        LocalTime normalizedAvailableTo = resourceType.isAvailabilityEnabled() ? request.availableTo() : null;
         validateResourceTypeDrivenFields(
             resourceType,
             request.locationId(),
-            request.capacity(),
-            request.availableFrom(),
-            request.availableTo()
+            normalizedCapacity,
+            normalizedAvailableFrom,
+            normalizedAvailableTo
         );
 
         resource.setId(UUID.randomUUID());
@@ -95,16 +99,12 @@ public class ResourceService {
         resource.setResourceType(resourceType);
         resource.setLocationEntity(location);
         resource.setManagedByRole(normalizeManagedByRole(request.managedByRole()));
-        if (!resourceType.isCapacityEnabled()) {
-            resource.setCapacity(null);
-        }
-        if (!resourceType.isQuantityEnabled()) {
-            resource.setQuantity(null);
-        }
-        if (!resourceType.isAvailabilityEnabled()) {
-            resource.setAvailableFrom(null);
-            resource.setAvailableTo(null);
-        }
+        resource.setCapacity(normalizedCapacity);
+        resource.setQuantity(normalizedQuantity);
+        resource.setAvailableFrom(normalizedAvailableFrom);
+        resource.setAvailableTo(normalizedAvailableTo);
+        resource.setBookable(resourceType.isBookableDefault());
+        resource.setMovable(resourceType.isMovableDefault());
         resource.setFeatures(resourceType.isFeaturesEnabled() ? resolveFeatures(request.featureCodes()) : new HashSet<>());
         syncLegacyCompatibilityFields(resource, resourceType, location);
         ResourceEntity saved = resourceRepository.save(resource);
@@ -242,7 +242,11 @@ public class ResourceService {
         if (request.managedByRole() != null) {
             resource.setManagedByRole(normalizeManagedByRole(request.managedByRole()));
         }
-        if (request.featureCodes() != null) {
+        resource.setBookable(nextResourceType.isBookableDefault());
+        resource.setMovable(nextResourceType.isMovableDefault());
+        if (!nextResourceType.isFeaturesEnabled()) {
+            resource.setFeatures(new HashSet<>());
+        } else if (request.featureCodes() != null) {
             resource.setFeatures(resolveFeatures(request.featureCodes()));
         }
         if (!nextResourceType.isCapacityEnabled()) {
@@ -257,9 +261,6 @@ public class ResourceService {
         } else if (request.availableFrom() != null || request.availableTo() != null) {
             resource.setAvailableFrom(request.availableFrom());
             resource.setAvailableTo(request.availableTo());
-        }
-        if (!nextResourceType.isFeaturesEnabled()) {
-            resource.setFeatures(new HashSet<>());
         }
         validateResourceTypeDrivenFields(
             nextResourceType,
