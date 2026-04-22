@@ -413,6 +413,40 @@ class UserManagementControllerTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    void publicPasswordResetRequestUsesGenericResponseAndRateLimit() throws Exception {
+        seedStudent("reset-existing@campus.test", AccountStatus.ACTIVE, true);
+        seedStudent("reset-suspended@campus.test", AccountStatus.SUSPENDED, true);
+
+        mockMvc.perform(post("/api/auth/password-reset/request")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"reset-existing@campus.test\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.message").value("If the account exists, a password reset email has been sent."));
+
+        int deliveriesAfterFirstRequest = recordingAuthProviderClient.deliveries().size();
+
+        mockMvc.perform(post("/api/auth/password-reset/request")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"missing-reset@campus.test\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.message").value("If the account exists, a password reset email has been sent."));
+
+        mockMvc.perform(post("/api/auth/password-reset/request")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"reset-suspended@campus.test\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.message").value("If the account exists, a password reset email has been sent."));
+
+        mockMvc.perform(post("/api/auth/password-reset/request")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"reset-existing@campus.test\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.message").value("If the account exists, a password reset email has been sent."));
+
+        assertThat(recordingAuthProviderClient.deliveries()).hasSize(deliveriesAfterFirstRequest);
+    }
+
+    @Test
     void adminCanDeleteUserFromSystem() throws Exception {
         UserEntity student = seedStudent("delete.user@campus.test", AccountStatus.ACTIVE, true);
         UUID authUserId = UUID.randomUUID();

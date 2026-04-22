@@ -118,6 +118,7 @@ public class SmartCampusProperties {
         private String serviceRoleKey;
         private String inviteRedirectTo;
         private String magicLinkRedirectTo;
+        private String passwordRecoveryRedirectTo;
 
         public String getUrl() {
             return url;
@@ -149,6 +150,14 @@ public class SmartCampusProperties {
 
         public void setMagicLinkRedirectTo(String magicLinkRedirectTo) {
             this.magicLinkRedirectTo = magicLinkRedirectTo;
+        }
+
+        public String getPasswordRecoveryRedirectTo() {
+            return passwordRecoveryRedirectTo;
+        }
+
+        public void setPasswordRecoveryRedirectTo(String passwordRecoveryRedirectTo) {
+            this.passwordRecoveryRedirectTo = passwordRecoveryRedirectTo;
         }
     }
 

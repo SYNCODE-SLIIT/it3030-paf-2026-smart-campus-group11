@@ -282,9 +282,7 @@ public class UserManagementService {
 
         int previousInviteCount = user.getInviteSendCount();
 
-        AuthProviderClient.DeliveryResult delivery = user.getAccountStatus() == AccountStatus.ACTIVE
-                ? authProviderClient.sendMagicLink(user.getEmail())
-                : authProviderClient.sendInviteLink(user.getEmail());
+        AuthProviderClient.DeliveryResult delivery = deliveryForAccountRecovery(user);
 
         recordDelivery(user, delivery);
 
@@ -310,6 +308,18 @@ public class UserManagementService {
         }
 
         return new MessageResponse("If the account exists, a sign-in email has been sent.");
+    }
+
+    @Transactional
+    public MessageResponse requestPasswordReset(String email) {
+        if (StringUtils.hasText(email)) {
+            String normalizedEmail = currentUserService.normalizeEmail(email);
+            userRepository.findByEmailIgnoreCase(normalizedEmail)
+                    .filter(user -> user.getAccountStatus() != AccountStatus.SUSPENDED)
+                    .ifPresent(user -> recordDelivery(user, deliveryForAccountRecovery(user)));
+        }
+
+        return new MessageResponse("If the account exists, a password reset email has been sent.");
     }
 
     @Transactional
@@ -674,6 +684,12 @@ public class UserManagementService {
         user.setLastInviteReference(deliveryResult.authReference());
         user.setLastInviteRedirectUri(deliveryResult.redirectUri());
         userRepository.flush();
+    }
+
+    private AuthProviderClient.DeliveryResult deliveryForAccountRecovery(UserEntity user) {
+        return user.getAccountStatus() == AccountStatus.ACTIVE
+                ? authProviderClient.sendRecoveryLink(user.getEmail())
+                : authProviderClient.sendInviteLink(user.getEmail());
     }
 
     private String nextStep(UserEntity user) {

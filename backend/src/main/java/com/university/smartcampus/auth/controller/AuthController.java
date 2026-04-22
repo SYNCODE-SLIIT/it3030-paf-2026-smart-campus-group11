@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.university.smartcampus.auth.dto.AuthDtos.LoginLinkRequest;
+import com.university.smartcampus.auth.dto.AuthDtos.PasswordResetRequest;
 import com.university.smartcampus.auth.dto.AuthDtos.SessionSyncResponse;
 import com.university.smartcampus.auth.service.CurrentUserService;
 import com.university.smartcampus.auth.service.LoginLinkRateLimiter;
@@ -24,6 +25,7 @@ import jakarta.validation.Valid;
 public class AuthController {
 
     private static final String GENERIC_LOGIN_LINK_MESSAGE = "If the account exists, a sign-in email has been sent.";
+    private static final String GENERIC_PASSWORD_RESET_MESSAGE = "If the account exists, a password reset email has been sent.";
 
     private final CurrentUserService currentUserService;
     private final UserManagementService userManagementService;
@@ -47,6 +49,17 @@ public class AuthController {
         }
 
         return userManagementService.requestLoginLink(request.email());
+    }
+
+    @PostMapping("/password-reset/request")
+    public MessageResponse requestPasswordReset(
+            @Valid @RequestBody PasswordResetRequest request,
+            HttpServletRequest httpServletRequest) {
+        if (!loginLinkRateLimiter.allow(request.email(), resolveClientIp(httpServletRequest))) {
+            return new MessageResponse(GENERIC_PASSWORD_RESET_MESSAGE);
+        }
+
+        return userManagementService.requestPasswordReset(request.email());
     }
 
     @PostMapping("/session/sync")

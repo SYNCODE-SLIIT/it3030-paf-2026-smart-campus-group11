@@ -236,7 +236,7 @@ class UserManagementServiceTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    void resendInviteForActiveStudentSendsMagicLink() {
+    void resendInviteForActiveStudentSendsRecoveryLink() {
         UserEntity studentUser = seedStudent("active-student-link@campus.test");
         studentUser.setAccountStatus(AccountStatus.ACTIVE);
         studentUser.setActivatedAt(Instant.now());
@@ -246,18 +246,40 @@ class UserManagementServiceTest extends AbstractPostgresIntegrationTest {
 
         assertThat(recordingAuthProviderClient.deliveries()).hasSize(1);
         assertThat(recordingAuthProviderClient.deliveries().get(0).deliveryMethod())
-            .isEqualTo(AuthDeliveryMethod.LOGIN_LINK_EMAIL);
+            .isEqualTo(AuthDeliveryMethod.PASSWORD_RECOVERY_EMAIL);
     }
 
     @Test
-    void resendInviteForActiveManagerSendsMagicLink() {
+    void resendInviteForActiveManagerSendsRecoveryLink() {
         UserEntity manager = seedManager("active-manager-link@campus.test", ManagerRole.CATALOG_MANAGER);
 
         userManagementService.resendInvite(manager.getId());
 
         assertThat(recordingAuthProviderClient.deliveries()).hasSize(1);
         assertThat(recordingAuthProviderClient.deliveries().get(0).deliveryMethod())
-            .isEqualTo(AuthDeliveryMethod.LOGIN_LINK_EMAIL);
+            .isEqualTo(AuthDeliveryMethod.PASSWORD_RECOVERY_EMAIL);
+    }
+
+    @Test
+    void passwordResetRequestUsesInviteForInvitedAndRecoveryForActiveUsers() {
+        seedStudent("reset-invited@campus.test");
+        UserEntity activeStudent = seedStudent("reset-active@campus.test");
+        activeStudent.setAccountStatus(AccountStatus.ACTIVE);
+        activeStudent.setActivatedAt(Instant.now());
+        userRepository.saveAndFlush(activeStudent);
+
+        assertThat(userManagementService.requestPasswordReset("reset-invited@campus.test").message())
+            .isEqualTo("If the account exists, a password reset email has been sent.");
+        assertThat(userManagementService.requestPasswordReset("reset-active@campus.test").message())
+            .isEqualTo("If the account exists, a password reset email has been sent.");
+        assertThat(userManagementService.requestPasswordReset("missing-reset@campus.test").message())
+            .isEqualTo("If the account exists, a password reset email has been sent.");
+
+        assertThat(recordingAuthProviderClient.deliveries()).hasSize(2);
+        assertThat(recordingAuthProviderClient.deliveries().get(0).deliveryMethod())
+            .isEqualTo(AuthDeliveryMethod.INVITE_EMAIL);
+        assertThat(recordingAuthProviderClient.deliveries().get(1).deliveryMethod())
+            .isEqualTo(AuthDeliveryMethod.PASSWORD_RECOVERY_EMAIL);
     }
 
     @Test

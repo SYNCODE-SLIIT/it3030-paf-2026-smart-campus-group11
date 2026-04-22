@@ -25,6 +25,8 @@ public class SupabaseAuthProviderClient implements AuthProviderClient {
     private static final String INVITE_FLOW_QUERY_PARAM = "flow";
     private static final String INVITE_FLOW_VALUE = "invite";
     private static final String INVITE_EMAIL_QUERY_PARAM = "invite_email";
+    private static final String RECOVERY_FLOW_VALUE = "recovery";
+    private static final String RECOVERY_EMAIL_QUERY_PARAM = "recovery_email";
 
     private final SmartCampusProperties properties;
 
@@ -80,6 +82,33 @@ public class SupabaseAuthProviderClient implements AuthProviderClient {
         return new DeliveryResult(AuthDeliveryMethod.LOGIN_LINK_EMAIL, null, redirectUri);
     }
 
+    @Override
+    public DeliveryResult sendRecoveryLink(String email) {
+        String redirectUri = withRecoveryRedirectContext(
+                properties.getAuth().getSupabase().getPasswordRecoveryRedirectTo(),
+                email);
+        sendRecoveryEmail(email, redirectUri);
+        return new DeliveryResult(AuthDeliveryMethod.PASSWORD_RECOVERY_EMAIL, null, redirectUri);
+    }
+
+    private String withRecoveryRedirectContext(String redirectUri, String recoveryEmail) {
+        if (!StringUtils.hasText(redirectUri)) {
+            return redirectUri;
+        }
+
+        try {
+            String normalizedEmail = normalizeEmail(recoveryEmail);
+
+            return UriComponentsBuilder.fromUriString(redirectUri)
+                    .replaceQueryParam(INVITE_FLOW_QUERY_PARAM, RECOVERY_FLOW_VALUE)
+                    .replaceQueryParam(RECOVERY_EMAIL_QUERY_PARAM, normalizedEmail)
+                    .build(true)
+                    .toUriString();
+        } catch (IllegalArgumentException exception) {
+            return redirectUri;
+        }
+    }
+
     private void sendInviteEmail(String email, String redirectUri) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("email", email);
@@ -99,12 +128,28 @@ public class SupabaseAuthProviderClient implements AuthProviderClient {
         sendAuthEmail("/otp", body, "Failed to send a sign-in email through Supabase.");
     }
 
+    private void sendRecoveryEmail(String email, String redirectUri) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("email", email);
+        sendAuthEmail("/recover", body, "Failed to send a password recovery email through Supabase.", redirectUri);
+    }
+
     private void sendAuthEmail(String path, Map<String, Object> body, String failureMessage) {
+        sendAuthEmail(path, body, failureMessage, null);
+    }
+
+    private void sendAuthEmail(String path, Map<String, Object> body, String failureMessage, String redirectUri) {
         ensureConfigured();
 
         try {
             restClient().post()
-                    .uri(path)
+                    .uri(uriBuilder -> {
+                        var builder = uriBuilder.path(path);
+                        if (StringUtils.hasText(redirectUri)) {
+                            builder.queryParam("redirect_to", redirectUri);
+                        }
+                        return builder.build();
+                    })
                     .headers(headers -> {
                         headers.setContentType(MediaType.APPLICATION_JSON);
                         headers.set(HttpHeaders.AUTHORIZATION,
