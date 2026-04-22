@@ -55,11 +55,12 @@ import { BookingScreenSkeleton } from '@/components/booking/BookingScreenSkeleto
 type TabType = 'bookings' | 'recurring' | 'calendar' | 'notifications';
 
 const DURATION_HINTS: Record<string, string> = {
+  SPACES: 'Max 3 hours',
   LECTURE_HALL: 'Max 3 hours',
   LABORATORY: 'Max 3 hours',
   LIBRARY_SPACE: 'Max 3 hours',
-  MEETING_ROOM: 'No limit',
-  EVENT_SPACE: 'No limit',
+  MEETING_ROOM: 'Max 3 hours',
+  EVENT_SPACE: 'Max 3 hours',
 };
 
 const NEW_BOOKING_INITIAL = {
