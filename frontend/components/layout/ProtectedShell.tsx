@@ -315,6 +315,7 @@ export function ProtectedShell({
   const { session, signOut } = useAuth();
   const resolvedWorkspace = workspace === 'auto' ? getWorkspaceForUser(user) : workspace;
   const notificationState = useNotifications(session?.access_token ?? null);
+  const refreshNotifications = notificationState.refreshNotifications;
 
   const handleSignOut = React.useCallback(() => {
     void signOut()
@@ -327,6 +328,55 @@ export function ProtectedShell({
   const resolvedSections = React.useMemo<NavSection[]>(() => {
     return filterSectionsByRole(sections ?? getDefaultSections(resolvedWorkspace, user), user);
   }, [resolvedWorkspace, sections, user]);
+
+  const isDashboardRoute = React.useMemo(() => {
+    const normalizedPath = pathname.endsWith('/') && pathname !== '/'
+      ? pathname.slice(0, -1)
+      : pathname;
+
+    switch (resolvedWorkspace) {
+      case 'admin':
+        return normalizedPath === '/admin';
+      case 'students':
+        return normalizedPath === '/students';
+      case 'faculty':
+        return normalizedPath === '/faculty';
+      case 'managers': {
+        const managerDashboardPath = getManagerDashboardPath(user.managerRole);
+        return normalizedPath === managerDashboardPath;
+      }
+      default:
+        return false;
+    }
+  }, [pathname, resolvedWorkspace, user.managerRole]);
+
+  React.useEffect(() => {
+    if (!isDashboardRoute || !session?.access_token) {
+      return undefined;
+    }
+
+    const refreshNotificationsInBackground = () => {
+      void refreshNotifications('all');
+    };
+
+    refreshNotificationsInBackground();
+
+    const interval = window.setInterval(refreshNotificationsInBackground, 45_000);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshNotificationsInBackground();
+      }
+    };
+
+    window.addEventListener('focus', refreshNotificationsInBackground);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('focus', refreshNotificationsInBackground);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isDashboardRoute, refreshNotifications, session?.access_token]);
 
   const notificationBell = (
     placement: 'above' | 'below',
