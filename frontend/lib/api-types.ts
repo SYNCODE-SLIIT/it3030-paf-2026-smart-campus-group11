@@ -237,6 +237,12 @@ export interface CatalogueResourceTypeResponse {
   description: string | null;
   isBookableDefault: boolean;
   isMovableDefault: boolean;
+  locationRequired: boolean;
+  capacityEnabled: boolean;
+  capacityRequired: boolean;
+  quantityEnabled: boolean;
+  availabilityEnabled: boolean;
+  featuresEnabled: boolean;
 }
 
 export interface CreateResourceTypeRequest {
@@ -246,6 +252,12 @@ export interface CreateResourceTypeRequest {
   description?: string | null;
   isBookableDefault: boolean;
   isMovableDefault: boolean;
+  locationRequired: boolean;
+  capacityEnabled: boolean;
+  capacityRequired: boolean;
+  quantityEnabled: boolean;
+  availabilityEnabled: boolean;
+  featuresEnabled: boolean;
 }
 
 export interface UpdateResourceTypeRequest {
@@ -255,6 +267,12 @@ export interface UpdateResourceTypeRequest {
   description?: string | null;
   isBookableDefault?: boolean;
   isMovableDefault?: boolean;
+  locationRequired?: boolean;
+  capacityEnabled?: boolean;
+  capacityRequired?: boolean;
+  quantityEnabled?: boolean;
+  availabilityEnabled?: boolean;
+  featuresEnabled?: boolean;
 }
 
 export interface LocationOption {
