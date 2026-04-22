@@ -19,10 +19,16 @@ public class BookingCheckInService {
 
     private final BookingRepository bookingRepository;
     private final BookingValidator bookingValidator;
+    private final BookingResourceAvailabilityService bookingResourceAvailabilityService;
 
-    public BookingCheckInService(BookingRepository bookingRepository, BookingValidator bookingValidator) {
+    public BookingCheckInService(
+        BookingRepository bookingRepository,
+        BookingValidator bookingValidator,
+        BookingResourceAvailabilityService bookingResourceAvailabilityService
+    ) {
         this.bookingRepository = bookingRepository;
         this.bookingValidator = bookingValidator;
+        this.bookingResourceAvailabilityService = bookingResourceAvailabilityService;
     }
 
     @Transactional
@@ -42,7 +48,9 @@ public class BookingCheckInService {
             throw new BadRequestException("Only approved bookings can be checked in.");
         }
 
-        Instant now = Instant.now();
+        bookingResourceAvailabilityService.ensureResourceAvailableForProgression(booking);
+
+        Instant now = bookingValidator.currentInstant();
         if (now.isBefore(booking.getStartTime())) {
             throw new BadRequestException("Booking has not started yet. Check-in is only available during booking time.");
         }
@@ -70,7 +78,7 @@ public class BookingCheckInService {
             throw new BadRequestException("Only approved or checked-in bookings can be marked as no-show.");
         }
 
-        Instant now = Instant.now();
+        Instant now = bookingValidator.currentInstant();
         if (now.isBefore(booking.getEndTime())) {
             throw new BadRequestException("Booking time has not ended yet.");
         }
@@ -97,7 +105,7 @@ public class BookingCheckInService {
             throw new BadRequestException("Only checked-in bookings can be completed.");
         }
 
-        Instant now = Instant.now();
+        Instant now = bookingValidator.currentInstant();
         if (now.isBefore(booking.getEndTime())) {
             throw new BadRequestException("Booking time has not ended yet. Wait until booking end time to complete.");
         }

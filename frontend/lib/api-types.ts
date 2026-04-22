@@ -381,6 +381,7 @@ export interface BookingResponse {
   id: string;
   resource: ResourceSummary;
   requesterId: string;
+  requesterRegistrationNumber: string | null;
   status: BookingStatus;
   startTime: string;
   endTime: string;
@@ -391,6 +392,19 @@ export interface BookingResponse {
   cancelledAt: string | null;
   checkInStatus: CheckInStatus | null;
   checkedInAt: string | null;
+}
+
+export interface TimeRangeResponse {
+  startTime: string;
+  endTime: string;
+}
+
+export interface ResourceRemainingRangesResponse {
+  resourceId: string;
+  date: string;
+  windowStart: string;
+  windowEnd: string;
+  remainingRanges: TimeRangeResponse[];
 }
 
 export interface CreateRecurringBookingRequest {

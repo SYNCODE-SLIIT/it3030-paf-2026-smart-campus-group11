@@ -31,6 +31,7 @@ import {
   type LocationOption,
   type RecurringBookingResponse,
   type RequestModificationRequest,
+  type ResourceRemainingRangesResponse,
   type ResourceFeatureOption,
   type ResourceResponse,
   type ResourceTypeOption,
@@ -617,6 +618,17 @@ export async function cancelMyBooking(accessToken: string, bookingId: string, pa
     method: 'POST',
     accessToken,
     body: payload,
+  });
+}
+
+export async function getResourceRemainingRanges(
+  accessToken: string,
+  resourceId: string,
+  date: string,
+) {
+  const query = new URLSearchParams({ date }).toString();
+  return request<ResourceRemainingRangesResponse>(`/api/bookings/resources/${resourceId}/remaining-ranges?${query}`, {
+    accessToken,
   });
 }
 

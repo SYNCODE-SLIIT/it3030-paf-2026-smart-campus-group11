@@ -1,7 +1,9 @@
 package com.university.smartcampus.booking;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 import java.util.UUID;
 
 import com.university.smartcampus.AppEnums.BookingStatus;
@@ -38,6 +40,7 @@ public final class BookingDtos {
         UUID id,
         ResourceDtos.ResourceSummary resource,
         UUID requesterId,
+        String requesterRegistrationNumber,
         BookingStatus status,
         Instant startTime,
         Instant endTime,
@@ -48,6 +51,21 @@ public final class BookingDtos {
         Instant cancelledAt,
         CheckInStatus checkInStatus,
         Instant checkedInAt
+    ) {
+    }
+
+    public record TimeRange(
+        Instant startTime,
+        Instant endTime
+    ) {
+    }
+
+    public record ResourceRemainingRangesResponse(
+        UUID resourceId,
+        LocalDate date,
+        Instant windowStart,
+        Instant windowEnd,
+        List<TimeRange> remainingRanges
     ) {
     }
 
