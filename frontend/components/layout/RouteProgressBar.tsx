@@ -34,6 +34,7 @@ function shouldTrackNavigation(anchor: HTMLAnchorElement): boolean {
 export function RouteProgressBar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const previousRouteRef = useRef<string | null>(null);
 
   const [visible, setVisible] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -191,8 +192,23 @@ export function RouteProgressBar() {
   }, [scheduleStart]);
 
   useEffect(() => {
+    const currentRoute = `${pathname}?${searchParams.toString()}`;
+    const previousRoute = previousRouteRef.current;
+
+    previousRouteRef.current = currentRoute;
+
+    if (previousRoute === null || previousRoute === currentRoute) {
+      return;
+    }
+
+    // Fallback: some navigations do not fire our early-start hooks.
+    // Start here so users still see a transition indicator, then complete.
+    if (!isActiveRef.current) {
+      start();
+    }
+
     complete();
-  }, [pathname, searchParams, complete]);
+  }, [pathname, searchParams, start, complete]);
 
   useEffect(() => {
     return () => {
