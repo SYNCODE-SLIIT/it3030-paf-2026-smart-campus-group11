@@ -2,9 +2,18 @@ export type UserType = 'STUDENT' | 'FACULTY' | 'ADMIN' | 'MANAGER';
 
 export type AccountStatus = 'INVITED' | 'ACTIVE' | 'SUSPENDED';
 
-export type AuthDeliveryMethod = 'INVITE_EMAIL' | 'LOGIN_LINK_EMAIL';
+export type AuthDeliveryMethod = 'INVITE_EMAIL' | 'LOGIN_LINK_EMAIL' | 'PASSWORD_RECOVERY_EMAIL';
 
 export type ManagerRole = 'CATALOG_MANAGER' | 'BOOKING_MANAGER' | 'TICKET_MANAGER';
+
+export type AdminAction =
+  | 'USER_CREATED'
+  | 'USER_UPDATED'
+  | 'USER_SUSPENDED'
+  | 'USER_ACTIVATED'
+  | 'USER_DELETED'
+  | 'INVITE_RESENT'
+  | 'MANAGER_ROLE_CHANGED';
 
 export type BookingStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'CHECKED_IN' | 'COMPLETED' | 'NO_SHOW';
 
@@ -535,6 +544,35 @@ export interface UserResponse {
   managerProfile: ManagerProfileResponse | null;
 }
 
+export interface AuditLogResponse {
+  id: string;
+  action: AdminAction;
+  performedById: string | null;
+  performedByEmail: string;
+  targetUserId: string | null;
+  targetUserEmail: string;
+  details: string | null;
+  createdAt: string;
+}
+
+export interface AuditLogPageResponse {
+  items: AuditLogResponse[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
+}
+
+export interface AuditLogFilters {
+  action?: AdminAction | '';
+  performedById?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  size?: number;
+}
+
 export interface SessionSyncResponse {
   user: UserResponse;
   nextStep: NextStep;
@@ -781,6 +819,8 @@ export interface TicketSummaryResponse {
 export interface TicketResponse extends TicketSummaryResponse {
   assignedToEmail: string | null;
   assignedToName: string | null;
+  resourceId: string | null;
+  locationId: string | null;
   resolutionNotes: string | null;
   rejectionReason: string | null;
   contactNote: string | null;
@@ -806,6 +846,7 @@ export interface CreateTicketRequest {
   category: TicketCategory;
   priority: TicketPriority;
   contactNote?: string;
+  resourceId?: string;
 }
 
 export interface UpdateTicketRequest {

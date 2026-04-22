@@ -16,10 +16,13 @@ import com.university.smartcampus.common.enums.AppEnums.ManagerRole;
 import com.university.smartcampus.common.enums.AppEnums.TicketCategory;
 import com.university.smartcampus.common.enums.AppEnums.TicketPriority;
 import com.university.smartcampus.common.enums.AppEnums.TicketStatus;
+import com.university.smartcampus.AppEnums.ResourceStatus;
 import com.university.smartcampus.common.enums.AppEnums.UserType;
 import com.university.smartcampus.common.exception.BadRequestException;
 import com.university.smartcampus.common.exception.ForbiddenException;
 import com.university.smartcampus.common.exception.NotFoundException;
+import com.university.smartcampus.resource.ResourceEntity;
+import com.university.smartcampus.resource.ResourceRepository;
 import com.university.smartcampus.ticket.dto.TicketDtos.AddCommentRequest;
 import com.university.smartcampus.ticket.dto.TicketDtos.AddTicketAttachmentRequest;
 import com.university.smartcampus.ticket.dto.TicketDtos.CreateTicketRequest;
@@ -56,6 +59,7 @@ public class TicketService {
     private final TicketStatusHistoryRepository ticketStatusHistoryRepository;
     private final TicketAttachmentStorageClient ticketAttachmentStorageClient;
     private final UserRepository userRepository;
+    private final ResourceRepository resourceRepository;
 
     public TicketService(
             TicketRepository ticketRepository,
@@ -64,7 +68,8 @@ public class TicketService {
             TicketCommentRepository ticketCommentRepository,
             TicketStatusHistoryRepository ticketStatusHistoryRepository,
             TicketAttachmentStorageClient ticketAttachmentStorageClient,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            ResourceRepository resourceRepository) {
         this.ticketRepository = ticketRepository;
         this.ticketAttachmentRepository = ticketAttachmentRepository;
         this.ticketAssignmentHistoryRepository = ticketAssignmentHistoryRepository;
@@ -72,6 +77,7 @@ public class TicketService {
         this.ticketStatusHistoryRepository = ticketStatusHistoryRepository;
         this.ticketAttachmentStorageClient = ticketAttachmentStorageClient;
         this.userRepository = userRepository;
+        this.resourceRepository = resourceRepository;
     }
 
     @Transactional
@@ -89,6 +95,18 @@ public class TicketService {
         ticket.setStatus(TicketStatus.OPEN);
         ticket.setReportedBy(reporter);
         ticket.setContactNote(request.contactNote());
+
+        if (request.resourceId() != null) {
+            ResourceEntity resource = resolveResource(request.resourceId());
+            ticket.setResource(resource);
+            ticket.setLocation(resource.getLocationEntity());
+
+            if (request.priority() == TicketPriority.URGENT && resource.getStatus() == ResourceStatus.ACTIVE) {
+                resource.setStatus(ResourceStatus.INACTIVE);
+                resourceRepository.save(resource);
+            }
+        }
+
         ticketRepository.save(ticket);
 
         recordHistory(ticket, null, TicketStatus.OPEN, reporter, null);
@@ -508,6 +526,11 @@ public class TicketService {
         return assignee;
     }
 
+    private ResourceEntity resolveResource(UUID resourceId) {
+        return resourceRepository.findById(resourceId)
+                .orElseThrow(() -> new NotFoundException("Resource not found."));
+    }
+
     private boolean isAssignableAssignee(UserEntity user) {
         return user.getAccountStatus() == AccountStatus.ACTIVE
                 && (isAdmin(user) || isTicketManager(user));
@@ -599,6 +622,8 @@ public class TicketService {
                 ticket.getAssignedTo() != null ? ticket.getAssignedTo().getId() : null,
                 ticket.getAssignedTo() != null ? ticket.getAssignedTo().getEmail() : null,
                 resolveAssignedToName(ticket.getAssignedTo()),
+                ticket.getResourceId(),
+                ticket.getLocationId(),
                 ticket.getResolutionNotes(),
                 ticket.getRejectionReason(),
                 ticket.getContactNote(),
