@@ -161,7 +161,7 @@ Flyway migration `V202604211430__seed_core_staff_accounts.sql` seeds these ACTIV
 - `technician@teamsyncode.com` (MANAGER, TICKET_MANAGER)
 - `booking@teamsyncode.com` (MANAGER, BOOKING_MANAGER)
 
-Flyway runs automatically when the backend starts, except in the default Docker Compose local setup where `SPRING_FLYWAY_ENABLED=false` is used to skip migration overhead against an already-managed Supabase schema.
+Flyway runs automatically when the backend starts, except in the default Docker Compose local setup where `SPRING_FLYWAY_ENABLED=false` is used to skip migration overhead against an already-managed Supabase schema. The Docker local setup also sets `SPRING_JPA_HIBERNATE_DDL_AUTO=none` and `SPRING_MAIN_LAZY_INITIALIZATION=true` to reduce startup checks and shorten boot time.
 
 ### 3) Provision Supabase Password Identities
 
