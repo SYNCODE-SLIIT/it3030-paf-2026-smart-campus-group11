@@ -13,7 +13,7 @@ function getPublicApiBaseUrl() {
     ?? (process.env.NODE_ENV === 'production' ? null : 'http://localhost:8080');
 }
 
-function useInternalApiUrl() {
+function isInternalApiUrlEnabled() {
   return process.env.USE_INTERNAL_API_URL?.trim().toLowerCase() === 'true';
 }
 
@@ -22,7 +22,7 @@ export function getBrowserApiBaseUrl() {
 }
 
 export function getServerApiBaseUrl() {
-  if (useInternalApiUrl()) {
+  if (isInternalApiUrlEnabled()) {
     return normalizeBaseUrl(process.env.INTERNAL_API_URL)
       ?? getPublicApiBaseUrl();
   }
