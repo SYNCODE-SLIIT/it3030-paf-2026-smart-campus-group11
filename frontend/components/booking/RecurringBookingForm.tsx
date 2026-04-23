@@ -1,13 +1,12 @@
 'use client';
 
 import React from 'react';
-import { Calendar, Clock, RotateCw } from 'lucide-react';
 import { Button, Card, Input, Select, Textarea } from '@/components/ui';
-import type { CreateRecurringBookingRequest, RecurrencePattern, ResourceResponse } from '@/lib/api-types';
+import type { CreateRecurringBookingRequest, RecurrencePattern, ResourceOption } from '@/lib/api-types';
 import { getResourceCategoryLabel } from '@/lib/resource-display';
 
 interface RecurringBookingFormProps {
-  resources: ResourceResponse[];
+  resources: ResourceOption[];
   onSubmit: (data: CreateRecurringBookingRequest) => Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;

@@ -7,8 +7,8 @@ import { useAuth } from '@/components/providers/AuthProvider';
 import { useToast } from '@/components/providers/ToastProvider';
 import { Alert, Button, Card, Chip, Input, Select, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
 import { BookingScreenSkeleton } from '@/components/booking/BookingScreenSkeleton';
-import { approveBooking, cancelApprovedBookingAsManager, getErrorMessage, listAllBookings, listResources, rejectBooking } from '@/lib/api-client';
-import type { BookingResponse, BookingStatus, ResourceResponse } from '@/lib/api-types';
+import { approveBooking, cancelApprovedBookingAsManager, getErrorMessage, listAllBookings, listResourceOptions, rejectBooking } from '@/lib/api-client';
+import type { BookingResponse, BookingStatus, ResourceOption } from '@/lib/api-types';
 
 function formatDateTime(value: string) {
   const parsed = new Date(value);
@@ -49,7 +49,7 @@ export function ManagerBookingsScreen() {
   const accessToken = session?.access_token ?? null;
 
   const [bookings, setBookings] = React.useState<BookingResponse[]>([]);
-  const [resources, setResources] = React.useState<ResourceResponse[]>([]);
+  const [resources, setResources] = React.useState<ResourceOption[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState<string | null>(null);
   const [activeBookingId, setActiveBookingId] = React.useState<string | null>(null);
@@ -72,7 +72,7 @@ export function ManagerBookingsScreen() {
     try {
       const [allBookings, availableResources] = await Promise.all([
         listAllBookings(accessToken),
-        listResources(accessToken),
+        listResourceOptions(accessToken, { status: 'ACTIVE' }),
       ]);
       setBookings(allBookings);
       setResources(availableResources);

@@ -5,8 +5,8 @@ import { Paperclip, TicketPlus, Trash2, Upload } from 'lucide-react';
 
 import { useAuth } from '@/components/providers/AuthProvider';
 import { Alert, Button, Dialog, Input, Select, Textarea } from '@/components/ui';
-import { createTicket, getErrorMessage, listResources, uploadTicketAttachment } from '@/lib/api-client';
-import type { ResourceResponse, TicketCategory, TicketPriority } from '@/lib/api-types';
+import { createTicket, getErrorMessage, listResourceOptions, uploadTicketAttachment } from '@/lib/api-client';
+import type { ResourceOption, TicketCategory, TicketPriority } from '@/lib/api-types';
 
 const CATEGORY_OPTIONS: { value: TicketCategory; label: string }[] = [
   { value: 'ELECTRICAL', label: 'Electrical' },
@@ -57,7 +57,7 @@ export function SubmitTicketModal({ open, onClose, onSuccess }: SubmitTicketModa
   const [s1, setS1] = React.useState<Step1>(INIT_STEP1);
   const [s2, setS2] = React.useState<Step2>(INIT_STEP2);
   const [files, setFiles] = React.useState<StagedFile[]>([]);
-  const [resources, setResources] = React.useState<ResourceResponse[]>([]);
+  const [resources, setResources] = React.useState<ResourceOption[]>([]);
   const [resourcesLoading, setResourcesLoading] = React.useState(false);
   const [resourceLoadError, setResourceLoadError] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -77,7 +77,7 @@ export function SubmitTicketModal({ open, onClose, onSuccess }: SubmitTicketModa
     setResourcesLoading(true);
     setResourceLoadError(null);
 
-    listResources(accessToken)
+    listResourceOptions(accessToken, { status: 'ACTIVE' })
       .then((nextResources) => {
         if (!cancelled) {
           setResources(nextResources);
@@ -333,7 +333,7 @@ export function SubmitTicketModal({ open, onClose, onSuccess }: SubmitTicketModa
                   id="st-location"
                   label="Location"
                   placeholder=""
-                  value={selectedResource?.locationDetails?.locationName ?? ''}
+                  value={selectedResource?.locationName ?? ''}
                   onChange={() => undefined}
                   disabled
                 />

@@ -7,8 +7,8 @@ import { useAuth } from '@/components/providers/AuthProvider';
 import { useToast } from '@/components/providers/ToastProvider';
 import { Alert, Button, Card, Chip, Input, Select, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Textarea } from '@/components/ui';
 import { BookingScreenSkeleton } from '@/components/booking/BookingScreenSkeleton';
-import { cancelMyBooking, createBooking, getErrorMessage, listMyBookings, listResources } from '@/lib/api-client';
-import type { BookingResponse, BookingStatus, ResourceResponse } from '@/lib/api-types';
+import { cancelMyBooking, createBooking, getErrorMessage, listMyBookings, listResourceOptions } from '@/lib/api-client';
+import type { BookingResponse, BookingStatus, ResourceOption } from '@/lib/api-types';
 
 const NEW_BOOKING_INITIAL = {
   resourceId: '',
@@ -77,7 +77,7 @@ export function RequesterBookingsScreen({
   const { showToast } = useToast();
   const accessToken = session?.access_token ?? null;
 
-  const [resources, setResources] = React.useState<ResourceResponse[]>([]);
+  const [resources, setResources] = React.useState<ResourceOption[]>([]);
   const [bookings, setBookings] = React.useState<BookingResponse[]>([]);
   const [form, setForm] = React.useState(NEW_BOOKING_INITIAL);
   const [loading, setLoading] = React.useState(true);
@@ -97,7 +97,7 @@ export function RequesterBookingsScreen({
 
     try {
       const [resourceList, myBookings] = await Promise.all([
-        listResources(accessToken),
+        listResourceOptions(accessToken, { status: 'ACTIVE', bookable: true }),
         listMyBookings(accessToken),
       ]);
       setResources(resourceList);

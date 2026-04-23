@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Bell, CalendarPlus, RotateCw, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useToast } from '@/components/providers/ToastProvider';
@@ -17,7 +17,6 @@ import {
   TableBody,
   TableCell,
   TableHead,
-  TableHeader,
   TableRow,
   Textarea,
   Dialog,
@@ -32,17 +31,19 @@ import {
   listNotifications,
   listMyBookings,
   listMyRecurringBookings,
-  listResources,
+  listResourceOptions,
   markNotificationAsRead,
   requestBookingModification,
 } from '@/lib/api-client';
 import type {
   BookingResponse,
   BookingStatus,
+  CreateRecurringBookingRequest,
   NotificationResponse,
   RecurringBookingResponse,
+  RequestModificationRequest,
   ResourceRemainingRangesResponse,
-  ResourceResponse,
+  ResourceOption,
 } from '@/lib/api-types';
 import { getResourceCategoryLabel } from '@/lib/resource-display';
 import { RecurringBookingForm } from '@/components/booking/RecurringBookingForm';
@@ -151,7 +152,7 @@ export function RequesterBookingsScreenEnhanced({
   const accessToken = session?.access_token ?? null;
 
   // State
-  const [resources, setResources] = React.useState<ResourceResponse[]>([]);
+  const [resources, setResources] = React.useState<ResourceOption[]>([]);
   const [bookings, setBookings] = React.useState<BookingResponse[]>([]);
   const [recurringBookings, setRecurringBookings] = React.useState<RecurringBookingResponse[]>([]);
   const [notifications, setNotifications] = React.useState<NotificationResponse[]>([]);
@@ -186,7 +187,7 @@ export function RequesterBookingsScreenEnhanced({
 
     try {
       const [resourceList, myBookings, recurring, notifs] = await Promise.all([
-        listResources(accessToken),
+        listResourceOptions(accessToken, { status: 'ACTIVE', bookable: true }),
         listMyBookings(accessToken),
         listMyRecurringBookings(accessToken),
         listNotifications(accessToken, { domain: 'BOOKING', limit: 40 }),
@@ -264,7 +265,7 @@ export function RequesterBookingsScreenEnhanced({
     setSubmitting(true);
     try {
       await createBooking(accessToken, {
-        resourceId: form.resourceId as any,
+        resourceId: form.resourceId,
         startTime: startTimeIso,
         endTime: endTimeIso,
         purpose: form.purpose,
@@ -309,7 +310,7 @@ export function RequesterBookingsScreenEnhanced({
     }
   }
 
-  async function handleCreateRecurringBooking(data: any) {
+  async function handleCreateRecurringBooking(data: CreateRecurringBookingRequest) {
     if (!accessToken) {
       showToast('error', 'Session unavailable', 'Please sign in again.');
       return;
@@ -328,7 +329,7 @@ export function RequesterBookingsScreenEnhanced({
     }
   }
 
-  async function handleRequestModification(data: any) {
+  async function handleRequestModification(data: RequestModificationRequest) {
     if (!accessToken || !modificationBooking) return;
 
     setSubmitting(true);
@@ -606,7 +607,7 @@ export function RequesterBookingsScreenEnhanced({
               {/* Bookings List */}
               {bookings.length === 0 ? (
                 <Alert variant="info" title="No bookings">
-                  You haven't created any bookings yet.
+                  You have not created any bookings yet.
                 </Alert>
               ) : (
                 <div
@@ -692,7 +693,7 @@ export function RequesterBookingsScreenEnhanced({
 
               {recurringBookings.length === 0 ? (
                 <Alert variant="info" title="No recurring bookings">
-                  You haven't created any recurring bookings yet.
+                  You have not created any recurring bookings yet.
                 </Alert>
               ) : (
                 <div style={{ display: 'grid', gap: 12 }}>
