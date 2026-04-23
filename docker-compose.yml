@@ -1,19 +1,38 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-smartcampus}
+      POSTGRES_USER: ${POSTGRES_USER:-smartcampus}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-smartcampus}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   backend:
     image: maven:3.9.6-eclipse-temurin-21
     working_dir: /app
     command: sh -c "sed -i 's/\r$//' /app/scripts/dev-autoreload.sh && chmod +x /app/scripts/dev-autoreload.sh && /app/scripts/dev-autoreload.sh"
     ports:
       - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
       RELOAD_POLL_INTERVAL_SECONDS: "2"
       SPRING_PROFILES_ACTIVE: local
       SPRING_DEVTOOLS_RESTART_ENABLED: "false"
       SPRING_DEVTOOLS_LIVERELOAD_ENABLED: "false"
       MAVEN_OPTS: "-Xms128m -Xmx512m -XX:MaxMetaspaceSize=256m"
-      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-}
-      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-}
-      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-}
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/${POSTGRES_DB:-smartcampus}}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-${POSTGRES_USER:-smartcampus}}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-${POSTGRES_PASSWORD:-smartcampus}}
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
       APP_TICKET_ATTACHMENTS_BUCKET: ${APP_TICKET_ATTACHMENTS_BUCKET:-ticket-attachments}
@@ -52,3 +71,6 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+
+volumes:
+  postgres-data:
