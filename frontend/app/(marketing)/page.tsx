@@ -1,4 +1,4 @@
-import { ArrowRight, BellRing, Building2, CalendarDays, ShieldCheck, Wrench } from 'lucide-react';
+import { ArrowRight, Building2, CalendarDays, ShieldCheck, Wrench } from 'lucide-react';
 import { redirect } from 'next/navigation';
 
 import { ButtonLink } from '@/components/marketing/ButtonLink';
@@ -49,11 +49,52 @@ const audience = [
   },
 ];
 
-function SectionShell({ children }: { children: React.ReactNode }) {
+function SectionShell({
+  children,
+  topPadding = 'clamp(72px, 10vw, 112px)',
+  bottomPadding = 'clamp(72px, 10vw, 112px)',
+}: {
+  children: React.ReactNode;
+  topPadding?: string;
+  bottomPadding?: string;
+}) {
   return (
-    <section style={{ maxWidth: 1440, margin: '0 auto', padding: '0 clamp(20px, 2.4vw, 36px)' }}>
-      {children}
+    <section
+      style={{
+        width: '100%',
+        paddingTop: topPadding,
+        paddingBottom: bottomPadding,
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 1360,
+          margin: '0 auto',
+          padding: '0 clamp(16px, 2vw, 32px)',
+        }}
+      >
+        {children}
+      </div>
     </section>
+  );
+}
+
+function SectionIntro({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        width: '100%',
+        maxWidth: 760,
+        margin: '0 auto 52px',
+        display: 'grid',
+        gap: 16,
+        justifyItems: 'center',
+        textAlign: 'center',
+      }}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -69,41 +110,51 @@ export default async function HomePage() {
   }
 
   return (
-    <div style={{ display: 'grid', gap: 96, paddingBottom: 88 }}>
-      <SectionShell>
+    <div style={{ paddingBottom: 88 }}>
+      <SectionShell topPadding="clamp(32px, 5vw, 48px)" bottomPadding="clamp(72px, 10vw, 112px)">
         <div
           style={{
-            display: 'grid',
-            gap: 28,
-            alignItems: 'center',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
             minHeight: 'calc(100vh - 180px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '12px 0',
           }}
         >
-          <Reveal style={{ display: 'grid', gap: 22 }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+          <Reveal
+            style={{
+              width: '100%',
+              maxWidth: 896,
+              margin: '0 auto',
+              display: 'grid',
+              gap: 30,
+              justifyItems: 'center',
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
               <Chip color="glass" dot>University Operations</Chip>
               <Chip color="blue">Resource Visibility</Chip>
               <Chip color="yellow">Booking Coordination</Chip>
             </div>
 
-            <div style={{ display: 'grid', gap: 16 }}>
+            <div style={{ display: 'grid', gap: 18, justifyItems: 'center' }}>
               <h1
                 style={{
                   fontFamily: 'var(--font-display)',
-                  fontSize: 'clamp(42px, 8vw, 76px)',
-                  lineHeight: 1,
+                  fontSize: 'clamp(48px, 7vw, 72px)',
+                  lineHeight: 1.08,
                   fontWeight: 900,
                   letterSpacing: '-0.06em',
                   color: 'var(--text-h)',
-                  maxWidth: 760,
+                  maxWidth: 820,
                 }}
               >
                 Smart Campus Management Platform
               </h1>
               <p
                 style={{
-                  maxWidth: 660,
+                  maxWidth: 760,
                   fontSize: 17,
                   lineHeight: 1.8,
                   color: 'var(--text-body)',
@@ -114,7 +165,7 @@ export default async function HomePage() {
               </p>
             </div>
 
-            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
               <ButtonLink href="/resources" size="lg" variant="glass" iconRight={<ArrowRight size={16} />}>
                 Explore Resources
               </ButtonLink>
@@ -123,85 +174,31 @@ export default async function HomePage() {
               </ButtonLink>
             </div>
           </Reveal>
-
-          <Reveal delay={0.08}>
-            <Card
-              hoverable
-              style={{
-                background: 'linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03))',
-                overflow: 'hidden',
-              }}
-            >
-              <div style={{ display: 'grid', gap: 20 }}>
-                <div
-                  style={{
-                    padding: 18,
-                    borderRadius: 18,
-                    background: 'linear-gradient(180deg, rgba(238,202,68,.18), rgba(238,202,68,.05))',
-                    border: '1px solid rgba(238,202,68,.2)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                    <BellRing size={18} color="var(--yellow-400)" />
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '.18em', textTransform: 'uppercase', color: 'var(--text-label)' }}>
-                      Campus Coordination
-                    </span>
-                  </div>
-                  <p style={{ fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 800, color: 'var(--text-h)', letterSpacing: '-0.04em' }}>
-                    Built for daily campus decisions.
-                  </p>
-                </div>
-
-                <div style={{ display: 'grid', gap: 14 }}>
-                  {[
-                    'Central catalogue for spaces, equipment, and facilities',
-                    'Clear request flows for booking and operational support',
-                    'Shared visibility for managers and administrators',
-                  ].map((item) => (
-                    <div
-                      key={item}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 12,
-                        padding: '12px 14px',
-                        borderRadius: 16,
-                        background: 'var(--surface-2)',
-                        border: '1px solid var(--border)',
-                      }}
-                    >
-                      <span
-                        style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: '50%',
-                          background: 'var(--yellow-400)',
-                          flexShrink: 0,
-                        }}
-                      />
-                      <span style={{ color: 'var(--text-body)', lineHeight: 1.7 }}>{item}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Card>
-          </Reveal>
         </div>
       </SectionShell>
 
       <SectionShell>
-        <Reveal style={{ display: 'grid', gap: 18, marginBottom: 26 }}>
-          <Chip color="glass">Platform Highlights</Chip>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(30px, 4vw, 44px)', fontWeight: 800, letterSpacing: '-0.05em', color: 'var(--text-h)' }}>
-            Key workflows, one connected platform
-          </h2>
-          <p style={{ maxWidth: 720, color: 'var(--text-body)', lineHeight: 1.8 }}>
-            Smart Campus combines resource visibility, request handling, and operational oversight in a structure that
-            feels familiar to university teams.
-          </p>
+        <Reveal>
+          <SectionIntro>
+            <Chip color="glass">Platform Highlights</Chip>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(30px, 4vw, 44px)', fontWeight: 800, letterSpacing: '-0.05em', color: 'var(--text-h)' }}>
+              Key workflows, one connected platform
+            </h2>
+            <p style={{ maxWidth: 720, color: 'var(--text-body)', lineHeight: 1.8 }}>
+              Smart Campus combines resource visibility, request handling, and operational oversight in a structure that
+              feels familiar to university teams.
+            </p>
+          </SectionIntro>
         </Reveal>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 18 }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gap: 24,
+            alignItems: 'stretch',
+          }}
+        >
           {platformHighlights.map((item, index) => {
             const Icon = item.icon;
             return (
@@ -237,43 +234,43 @@ export default async function HomePage() {
       </SectionShell>
 
       <SectionShell>
-        <div
-          style={{
-            display: 'grid',
-            gap: 20,
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            alignItems: 'start',
-          }}
-        >
-          <Reveal style={{ display: 'grid', gap: 16 }}>
+        <Reveal>
+          <SectionIntro>
             <Chip color="blue">Who It Serves</Chip>
             <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(30px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.05em', color: 'var(--text-h)' }}>
               Designed for the people who keep campus moving
             </h2>
-            <p style={{ color: 'var(--text-body)', lineHeight: 1.8, maxWidth: 520 }}>
+            <p style={{ color: 'var(--text-body)', lineHeight: 1.8, maxWidth: 620 }}>
               From day-to-day student requests to administrative oversight, the platform is structured around the real
               roles involved in campus operations.
             </p>
-          </Reveal>
+          </SectionIntro>
+        </Reveal>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-            {audience.map((item, index) => (
-              <Reveal key={item.title} delay={index * 0.05}>
-                <Card hoverable style={{ height: '100%' }}>
-                  <div style={{ display: 'grid', gap: 10 }}>
-                    <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, color: 'var(--text-h)' }}>
-                      {item.title}
-                    </h3>
-                    <p style={{ color: 'var(--text-body)', lineHeight: 1.8 }}>{item.description}</p>
-                  </div>
-                </Card>
-              </Reveal>
-            ))}
-          </div>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gap: 24,
+            alignItems: 'stretch',
+          }}
+        >
+          {audience.map((item, index) => (
+            <Reveal key={item.title} delay={index * 0.05}>
+              <Card hoverable style={{ height: '100%' }}>
+                <div style={{ display: 'grid', gap: 10 }}>
+                  <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, color: 'var(--text-h)' }}>
+                    {item.title}
+                  </h3>
+                  <p style={{ color: 'var(--text-body)', lineHeight: 1.8 }}>{item.description}</p>
+                </div>
+              </Card>
+            </Reveal>
+          ))}
         </div>
       </SectionShell>
 
-      <SectionShell>
+      <SectionShell topPadding="0" bottomPadding="clamp(72px, 10vw, 112px)">
         <Reveal>
           <Card
             variant="dark"
