@@ -110,6 +110,21 @@ function auditChipColor(action: AuditLogResponse['action']): 'yellow' | 'red' | 
   return 'yellow';
 }
 
+function accountStatusChipColor(status: UserResponse['accountStatus']): 'yellow' | 'red' | 'green' {
+  switch (status) {
+    case 'ACTIVE':
+      return 'green';
+    case 'SUSPENDED':
+      return 'red';
+    default:
+      return 'yellow';
+  }
+}
+
+function accountStatusLabel(status: UserResponse['accountStatus']) {
+  return status.charAt(0) + status.slice(1).toLowerCase();
+}
+
 function getRoleDirectoryPath(userType: UserResponse['userType']) {
   switch (userType) {
     case 'STUDENT':
@@ -469,8 +484,7 @@ export function AdminDashboardScreen() {
         }
         .admin-action-button,
         .admin-attention-button,
-        .admin-role-button,
-        .admin-account-button {
+        .admin-role-button {
           width: 100%;
           border: 1px solid var(--border);
           border-radius: var(--radius-md);
@@ -482,8 +496,7 @@ export function AdminDashboardScreen() {
         }
         .admin-action-button:hover,
         .admin-attention-button:hover,
-        .admin-role-button:hover,
-        .admin-account-button:hover {
+        .admin-role-button:hover {
           border-color: rgba(238,202,68,.34);
           transform: translateY(-1px);
         }
@@ -593,21 +606,6 @@ export function AdminDashboardScreen() {
           font-weight: 900;
           color: var(--text-h);
         }
-        .admin-account-button {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) auto;
-          align-items: center;
-          gap: 10px;
-          min-height: 64px;
-          padding: 10px 12px;
-        }
-        .admin-account-meta {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          gap: 8px;
-          flex-wrap: wrap;
-        }
         .admin-activity-avatar {
           width: 30px;
           height: 30px;
@@ -658,12 +656,6 @@ export function AdminDashboardScreen() {
           }
           .admin-inline-stat-grid {
             grid-template-columns: 1fr;
-          }
-          .admin-account-button {
-            grid-template-columns: 1fr;
-          }
-          .admin-account-meta {
-            justify-content: flex-start;
           }
         }
       `}</style>
@@ -761,7 +753,7 @@ export function AdminDashboardScreen() {
           </div>
 
           <div className="admin-dashboard-grid">
-            <Card className="admin-card-span-8 admin-card-fill">
+            <Card className="admin-card-span-7 admin-card-fill">
               <div style={{ display: 'grid', gap: 16, height: '100%' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
                   <SectionTitle title="Account Health" caption="The most important account lifecycle signals." />
@@ -825,7 +817,7 @@ export function AdminDashboardScreen() {
               </div>
             </Card>
 
-            <Card className="admin-card-span-4 admin-card-fill">
+            <Card className="admin-card-span-5 admin-card-fill">
               <div style={{ display: 'grid', gap: 12, height: '100%' }}>
                 <SectionTitle title="Quick Actions" caption="Frequent admin workflows." />
                 <div style={{ display: 'grid', gap: 9 }}>
@@ -858,7 +850,7 @@ export function AdminDashboardScreen() {
               </div>
             </Card>
 
-            <Card className="admin-card-span-5 admin-card-fill">
+            <Card className="admin-card-span-7 admin-card-fill">
               <div style={{ display: 'grid', gap: 14, height: '100%' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
                   <SectionTitle title="Role Distribution" caption="Current users by directory role." />
@@ -880,7 +872,7 @@ export function AdminDashboardScreen() {
               </div>
             </Card>
 
-            <Card className="admin-card-span-3 admin-card-fill">
+            <Card className="admin-card-span-5 admin-card-fill">
               <div style={{ display: 'grid', gap: 12, height: '100%' }}>
                 <SectionTitle title="Needs Attention" caption="Start with these admin checks." />
                 <div style={{ display: 'grid', gap: 9 }}>
@@ -903,43 +895,75 @@ export function AdminDashboardScreen() {
               </div>
             </Card>
 
-            <Card className="admin-card-span-4 admin-card-fill">
-              <div style={{ display: 'grid', gap: 12, height: '100%' }}>
+            <Card className="admin-card-span-12">
+              <div style={{ display: 'grid', gap: 14 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
-                  <SectionTitle title="Recent Accounts" caption="Newest accounts in the directory." />
+                  <SectionTitle title="Recent Accounts" caption="Newest accounts in the directory, organized like the activity feed." />
                   <Button variant="ghost" size="xs" onClick={() => router.push('/admin/users')}>
                     View All
                   </Button>
                 </div>
 
-                <div style={{ display: 'grid', gap: 8 }}>
-                  {recentAccounts.length === 0 ? (
-                    <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 13 }}>No users have been created yet.</p>
-                  ) : (
-                    recentAccounts.map((user) => (
-                      <button
-                        key={user.id}
-                        type="button"
-                        className="admin-account-button"
-                        onClick={() => router.push(getUserDetailPath(user))}
-                        aria-label={`Open ${getUserDisplayName(user)} profile`}
-                      >
-                        <UserIdentityCell
-                          name={getUserDisplayName(user)}
-                          email={user.email}
-                          initials={getUserAvatarInitials(user)}
-                          src={user.userType === 'STUDENT' ? user.studentProfile?.profileImageUrl : undefined}
-                        />
-                        <span className="admin-account-meta">
-                          <Chip color={getUserTypeChipColor(user.userType)} dot size="sm">
-                            {getUserTypeLabel(user.userType)}
-                          </Chip>
-                          <span className="admin-account-date">{formatDate(user.invitedAt)}</span>
-                        </span>
-                      </button>
-                    ))
-                  )}
-                </div>
+                {recentAccounts.length === 0 ? (
+                  <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 13 }}>No users have been created yet.</p>
+                ) : (
+                  <div style={{ overflowX: 'auto' }}>
+                    <Table>
+                      <TableHead>
+                        <TableRow hoverable={false}>
+                          <TableHeader>Account</TableHeader>
+                          <TableHeader>Role</TableHeader>
+                          <TableHeader>Status</TableHeader>
+                          <TableHeader>Invited</TableHeader>
+                          <TableHeader style={{ textAlign: 'right' }}>Last Login</TableHeader>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {recentAccounts.map((user) => (
+                          <TableRow key={user.id}>
+                            <TableCell>
+                              <button
+                                type="button"
+                                onClick={() => router.push(getUserDetailPath(user))}
+                                style={{
+                                  padding: 0,
+                                  border: 'none',
+                                  background: 'transparent',
+                                  cursor: 'pointer',
+                                  textAlign: 'left',
+                                }}
+                                aria-label={`Open ${getUserDisplayName(user)} profile`}
+                              >
+                                <UserIdentityCell
+                                  name={getUserDisplayName(user)}
+                                  email={user.email}
+                                  initials={getUserAvatarInitials(user)}
+                                  src={user.userType === 'STUDENT' ? user.studentProfile?.profileImageUrl : undefined}
+                                />
+                              </button>
+                            </TableCell>
+                            <TableCell>
+                              <Chip color={getUserTypeChipColor(user.userType)} dot>
+                                {getUserTypeLabel(user.userType)}
+                              </Chip>
+                            </TableCell>
+                            <TableCell>
+                              <Chip color={accountStatusChipColor(user.accountStatus)} size="sm">
+                                {accountStatusLabel(user.accountStatus)}
+                              </Chip>
+                            </TableCell>
+                            <TableCell style={{ color: 'var(--text-body)', fontSize: 12.5, whiteSpace: 'nowrap' }}>
+                              {formatDate(user.invitedAt)}
+                            </TableCell>
+                            <TableCell style={{ textAlign: 'right', color: 'var(--text-muted)', fontSize: 12, whiteSpace: 'nowrap' }}>
+                              {user.lastLoginAt ? relativeTime(user.lastLoginAt) : 'Never'}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
               </div>
             </Card>
 
