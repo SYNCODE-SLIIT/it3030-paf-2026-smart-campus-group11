@@ -20,6 +20,7 @@ import com.university.smartcampus.common.enums.AppEnums.TicketCategory;
 import com.university.smartcampus.common.enums.AppEnums.TicketPriority;
 import com.university.smartcampus.common.enums.AppEnums.TicketStatus;
 import com.university.smartcampus.common.enums.AppEnums.UserType;
+import com.university.smartcampus.config.SmartCampusProperties;
 import com.university.smartcampus.notification.NotificationDtos.NotificationPreferenceCategoryResponse;
 import com.university.smartcampus.notification.NotificationDtos.NotificationPreferencesResponse;
 import com.university.smartcampus.notification.NotificationDtos.UpdateNotificationPreferenceCategoryRequest;
@@ -55,6 +56,9 @@ class NotificationServiceIntegrationTest extends AbstractPostgresIntegrationTest
 
     @Autowired
     private TicketRepository ticketRepository;
+
+    @Autowired
+    private SmartCampusProperties properties;
 
     @Test
     void getPreferencesReturnsAllDomainsAndCreatesMissingRows() {
@@ -124,7 +128,10 @@ class NotificationServiceIntegrationTest extends AbstractPostgresIntegrationTest
             .orElseThrow();
 
         assertThat(inAppAttempt.getStatus()).isEqualTo(NotificationDeliveryStatus.SKIPPED);
-        assertThat(emailAttempt.getStatus()).isEqualTo(NotificationDeliveryStatus.PENDING);
+        NotificationDeliveryStatus expectedEmailStatus = properties.getNotifications().getEmail().isEnabled()
+            ? NotificationDeliveryStatus.PENDING
+            : NotificationDeliveryStatus.SKIPPED;
+        assertThat(emailAttempt.getStatus()).isEqualTo(expectedEmailStatus);
         assertThat(notificationService.listNotifications(student, "all", null, 20)).isEmpty();
         assertThat(notificationService.unreadCount(student).unreadCount()).isZero();
 
