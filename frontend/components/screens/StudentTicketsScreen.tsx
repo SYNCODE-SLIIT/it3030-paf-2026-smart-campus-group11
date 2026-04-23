@@ -9,7 +9,7 @@ import { useToast } from '@/components/providers/ToastProvider';
 import { Alert, Button, Dialog, Skeleton, Tabs } from '@/components/ui';
 import { SubmitTicketModal, TicketCard, TicketsSectionSkeleton } from '@/components/tickets';
 import { deleteTicket, getErrorMessage, listMyTickets } from '@/lib/api-client';
-import type { TicketPriority, TicketStatus, TicketSummaryResponse } from '@/lib/api-types';
+import type { TicketPriority, TicketQueryScope, TicketStatus, TicketSummaryResponse } from '@/lib/api-types';
 
 type StatusFilter = TicketStatus | 'ALL';
 
@@ -121,10 +121,12 @@ export function RequesterTicketsScreen({
   workspaceLabel,
   description,
   ticketsBasePath,
+  ticketScope = 'REPORTED',
 }: {
   workspaceLabel: string;
   description: string;
   ticketsBasePath: string;
+  ticketScope?: TicketQueryScope;
 }) {
   const { session } = useAuth();
   const { showToast } = useToast();
@@ -150,7 +152,7 @@ export function RequesterTicketsScreen({
     setLoading(true);
     setLoadError(null);
     try {
-      const list = await listMyTickets(accessToken);
+      const list = await listMyTickets(accessToken, { scope: ticketScope });
       setTickets(list);
     } catch (error) {
       setLoadError(getErrorMessage(error, 'We could not load your tickets.'));
@@ -158,7 +160,7 @@ export function RequesterTicketsScreen({
     } finally {
       setLoading(false);
     }
-  }, [accessToken]);
+  }, [accessToken, ticketScope]);
 
   React.useEffect(() => {
     void reload();
