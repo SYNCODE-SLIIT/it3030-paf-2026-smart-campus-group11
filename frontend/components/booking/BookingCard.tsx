@@ -122,6 +122,10 @@ function statusNote(booking: BookingResponse) {
   return 'No purpose provided for this booking.';
 }
 
+function isSpaceResource(resource?: ResourceResponse | null) {
+  return resource?.category === 'SPACES';
+}
+
 export function BookingCardSkeleton() {
   return (
     <div
@@ -176,6 +180,7 @@ export function BookingCard({
 }: BookingCardProps) {
   const locationLabel = summarizeLocation(resource);
   const note = statusNote(booking);
+  const showCheckInStatus = isSpaceResource(resource) && booking.checkInStatus;
 
   return (
     <div
@@ -322,9 +327,9 @@ export function BookingCard({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-          {booking.checkInStatus ? (
-            <Chip color={CHECK_IN_CHIP[booking.checkInStatus]} size="sm">
-              {CHECK_IN_LABELS[booking.checkInStatus]}
+          {showCheckInStatus ? (
+            <Chip color={CHECK_IN_CHIP[showCheckInStatus]} size="sm">
+              {CHECK_IN_LABELS[showCheckInStatus]}
             </Chip>
           ) : (
             <div />

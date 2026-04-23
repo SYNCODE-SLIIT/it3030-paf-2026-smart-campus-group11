@@ -90,6 +90,10 @@ function isCheckInWindow(booking: BookingResponse) {
   return startTime <= now && endTime > now;
 }
 
+function isSpaceResource(resource?: ResourceResponse | null) {
+  return resource?.category === 'SPACES';
+}
+
 function ManagerBookingSectionsSkeleton() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
@@ -274,8 +278,11 @@ export function ManagerBookingsScreenEnhanced() {
   );
 
   const checkInBookings = React.useMemo(
-    () => bookings.filter((booking) => booking.status === 'APPROVED' || booking.checkInStatus),
-    [bookings],
+    () => bookings.filter((booking) => {
+      const resource = resourceById.get(booking.resource.id);
+      return isSpaceResource(resource) && (booking.status === 'APPROVED' || booking.checkInStatus);
+    }),
+    [bookings, resourceById],
   );
 
   const selectedLocationResource = locationBooking ? resourceById.get(locationBooking.resource.id) ?? null : null;

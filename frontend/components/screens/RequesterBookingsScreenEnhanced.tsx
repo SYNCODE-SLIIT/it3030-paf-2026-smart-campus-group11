@@ -136,7 +136,15 @@ function canCancelByRequester(booking: BookingResponse) {
   return Number.isFinite(startTime) && startTime > Date.now();
 }
 
-function isCheckInAvailable(booking: BookingResponse) {
+function isSpaceResource(resource?: ResourceResponse | null) {
+  return resource?.category === 'SPACES';
+}
+
+function isCheckInAvailable(booking: BookingResponse, resource?: ResourceResponse | null) {
+  if (!isSpaceResource(resource)) {
+    return false;
+  }
+
   if (booking.status !== 'APPROVED') {
     return false;
   }
@@ -421,6 +429,13 @@ export function RequesterBookingsScreenEnhanced({
   async function handleCheckIn(bookingId: string) {
     if (!accessToken) {
       showToast('error', 'Session unavailable', 'Please sign in again.');
+      return;
+    }
+
+    const booking = bookings.find((entry) => entry.id === bookingId);
+    const resource = booking ? resourceById.get(booking.resource.id) : null;
+    if (!isSpaceResource(resource)) {
+      showToast('warning', 'Check-in unavailable', 'Check-in is only available for space bookings.');
       return;
     }
 
@@ -837,53 +852,57 @@ export function RequesterBookingsScreenEnhanced({
                       color={section.color}
                       count={section.items.length}
                     >
-                      {section.items.map((booking) => (
-                        <div key={booking.id} style={{ minWidth: 320, maxWidth: 340, flexShrink: 0 }}>
-                          <BookingCard
-                            booking={booking}
-                            resource={resourceById.get(booking.resource.id)}
-                            onLocation={() => setLocationBooking(booking)}
-                            actions={
-                              <>
-                                {booking.status === 'APPROVED' && new Date(booking.startTime).getTime() > Date.now() && (
-                                  <Button
-                                    variant="ghost"
-                                    size="xs"
-                                    onClick={() => {
-                                      setModificationBooking(booking);
-                                      setShowModificationModal(true);
-                                    }}
-                                  >
-                                    Reschedule
-                                  </Button>
-                                )}
-                                {canCancelByRequester(booking) && (
-                                  <Button
-                                    variant="ghost-danger"
-                                    size="xs"
-                                    onClick={() => {
-                                      setCancellationBooking(booking);
-                                      setCancellationReason('');
-                                    }}
-                                    disabled={submitting}
-                                  >
-                                    Cancel
-                                  </Button>
-                                )}
-                                {isCheckInAvailable(booking) && (
-                                  <Button
-                                    variant="primary"
-                                    size="xs"
-                                    onClick={() => setCheckInBookingId(booking.id)}
-                                  >
-                                    Check In
-                                  </Button>
-                                )}
-                              </>
-                            }
-                          />
-                        </div>
-                      ))}
+                      {section.items.map((booking) => {
+                        const resource = resourceById.get(booking.resource.id);
+
+                        return (
+                          <div key={booking.id} style={{ minWidth: 320, maxWidth: 340, flexShrink: 0 }}>
+                            <BookingCard
+                              booking={booking}
+                              resource={resource}
+                              onLocation={() => setLocationBooking(booking)}
+                              actions={
+                                <>
+                                  {booking.status === 'APPROVED' && new Date(booking.startTime).getTime() > Date.now() && (
+                                    <Button
+                                      variant="ghost"
+                                      size="xs"
+                                      onClick={() => {
+                                        setModificationBooking(booking);
+                                        setShowModificationModal(true);
+                                      }}
+                                    >
+                                      Reschedule
+                                    </Button>
+                                  )}
+                                  {canCancelByRequester(booking) && (
+                                    <Button
+                                      variant="ghost-danger"
+                                      size="xs"
+                                      onClick={() => {
+                                        setCancellationBooking(booking);
+                                        setCancellationReason('');
+                                      }}
+                                      disabled={submitting}
+                                    >
+                                      Cancel
+                                    </Button>
+                                  )}
+                                  {isCheckInAvailable(booking, resource) && (
+                                    <Button
+                                      variant="primary"
+                                      size="xs"
+                                      onClick={() => setCheckInBookingId(booking.id)}
+                                    >
+                                      Check In
+                                    </Button>
+                                  )}
+                                </>
+                              }
+                            />
+                          </div>
+                        );
+                      })}
                     </BookingSection>
                   ))}
                 </div>
