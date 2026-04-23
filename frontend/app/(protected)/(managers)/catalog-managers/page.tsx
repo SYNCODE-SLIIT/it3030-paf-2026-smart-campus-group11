@@ -1,0 +1,7 @@
+import { redirect } from 'next/navigation';
+import { requireManagerRole } from '@/lib/server-auth';
+
+export default async function CatalogManagerDashboardPage() {
+  await requireManagerRole(['CATALOG_MANAGER']);
+  redirect('/managers/catalog');
+}

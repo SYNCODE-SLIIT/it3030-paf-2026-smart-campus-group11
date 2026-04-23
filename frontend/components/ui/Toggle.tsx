@@ -4,6 +4,7 @@ import React from 'react';
 
 interface ToggleProps {
   label?: string;
+  ariaLabel?: string;
   checked?: boolean;
   defaultChecked?: boolean;
   onChange?: (checked: boolean) => void;
@@ -13,13 +14,15 @@ interface ToggleProps {
 
 export function Toggle({
   label,
+  ariaLabel,
   checked,
   defaultChecked = false,
   onChange,
   disabled = false,
   id,
 }: ToggleProps) {
-  const inputId = id ?? React.useId();
+  const generatedId = React.useId();
+  const inputId = id ?? generatedId;
   const [internalChecked, setInternalChecked] = React.useState(defaultChecked);
   const isOn = checked !== undefined ? checked : internalChecked;
   const [bouncing, setBouncing] = React.useState(false);
@@ -42,9 +45,11 @@ export function Toggle({
       }}
     >
       <button
+        type="button"
         id={inputId}
         role="switch"
         aria-checked={isOn}
+        aria-label={ariaLabel ?? label}
         disabled={disabled}
         onClick={handleClick}
         style={{

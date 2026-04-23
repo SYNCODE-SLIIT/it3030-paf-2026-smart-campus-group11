@@ -2,6 +2,7 @@
 # Java / Spring Boot (Backend)
 # ==========================================
 **/target/
+**/.m2/
 **/.mvn/wrapper/maven-wrapper.jar
 **/HELP.md
 
@@ -24,6 +25,7 @@
 **/out/
 **/build/
 **/coverage/
+**/*.tsbuildinfo
 
 # Logs and Debugging
 npm-debug.log*
@@ -45,3 +47,7 @@ yarn-error.log*
 # OS specific
 .DS_Store
 Thumbs.db
+
+# Repository documentation drafts / generated notes
+BOOKING_SYSTEM_AUDIT.md
+BOOKING_SYSTEM_IMPLEMENTATION_GUIDE.md

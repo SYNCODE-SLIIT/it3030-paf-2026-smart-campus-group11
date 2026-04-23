@@ -1,12 +1,16 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Avatar, Button } from '@/components/ui';
-import { Menu, X } from 'lucide-react';
+import Link from 'next/link';
+import { Avatar, Button, GlassPill, IconButton } from '@/components/ui';
+import { LogOut, Menu, X } from 'lucide-react';
+import type { UserType } from '@/lib/api-types';
 
 export interface NavItem {
   label: string;
   href: string;
+  /** Roles that can see this item. Omit to show to everyone. */
+  allowedUserTypes?: UserType[];
 }
 
 export interface NavUser {
@@ -22,18 +26,12 @@ interface NavbarProps {
   onLogin?: () => void;
   onLogout?: () => void;
   onNavigate?: (href: string) => void;
+  hideAuthActions?: boolean;
+  rightAccessory?: React.ReactNode;
 }
 
-const glassPill: React.CSSProperties = {
-  background: 'var(--nav-bg)',
-  backdropFilter: 'blur(20px) saturate(1.4)',
-  WebkitBackdropFilter: 'blur(20px) saturate(1.4)',
-  borderRadius: 100,
-  border: '1px solid var(--border)',
-  boxShadow: 'inset 0 1px 0 var(--nav-inset), 0 2px 16px rgba(0,0,0,.07), 0 1px 3px rgba(0,0,0,.05)',
-};
 
-export function Navbar({ items, currentPath, user, onLogin, onLogout, onNavigate }: NavbarProps) {
+export function Navbar({ items, currentPath, user, onLogin, onLogout, onNavigate, hideAuthActions, rightAccessory }: NavbarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -45,7 +43,7 @@ export function Navbar({ items, currentPath, user, onLogin, onLogout, onNavigate
           left: 0,
           width: '100%',
           zIndex: 50,
-          padding: '0 24px',
+          padding: '0 clamp(16px, 2.2vw, 32px)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -53,9 +51,8 @@ export function Navbar({ items, currentPath, user, onLogin, onLogout, onNavigate
         }}
       >
         {/* Left pill: Logo + Nav */}
-        <div
+        <GlassPill
           style={{
-            ...glassPill,
             display: 'flex',
             alignItems: 'center',
             gap: 4,
@@ -84,6 +81,7 @@ export function Navbar({ items, currentPath, user, onLogin, onLogout, onNavigate
               <NavLink
                 key={item.href}
                 label={item.label}
+                href={item.href}
                 active={currentPath === item.href}
                 onClick={() => onNavigate?.(item.href)}
               />
@@ -107,51 +105,58 @@ export function Navbar({ items, currentPath, user, onLogin, onLogout, onNavigate
           >
             <Menu size={20} strokeWidth={2.5} />
           </button>
-        </div>
+        </GlassPill>
 
         {/* Right pill: Auth */}
-        <div
-          style={{
-            ...glassPill,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            padding: user ? '0 8px 0 10px' : '0 8px',
-            height: 52,
-            pointerEvents: 'auto',
-          }}
-        >
-          {user ? (
-            <>
-              <Avatar
-                initials={user.initials ?? user.name.slice(0, 2).toUpperCase()}
-                src={user.src}
-                size="sm"
-              />
-              <span
-                style={{
-                  fontFamily: 'var(--font-display)',
-                  fontWeight: 600,
-                  fontSize: 12,
-                  color: 'var(--text-h)',
-                  maxWidth: 120,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {user.name}
-              </span>
-              <Button variant="ghost" size="sm" onClick={onLogout} style={{ borderRadius: 100 }}>
-                Sign out
+        {!hideAuthActions && (
+          <GlassPill
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: user ? '0 8px 0 10px' : '0 8px',
+              height: 52,
+              pointerEvents: 'auto',
+            }}
+          >
+            {user ? (
+              <>
+                {rightAccessory}
+                <Avatar
+                  initials={user.initials ?? user.name.slice(0, 2).toUpperCase()}
+                  src={user.src}
+                  size="sm"
+                />
+                <span
+                  style={{
+                    fontFamily: 'var(--font-display)',
+                    fontWeight: 600,
+                    fontSize: 12,
+                    color: 'var(--text-h)',
+                    maxWidth: 120,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {user.name}
+                </span>
+                <IconButton
+                  icon={<LogOut size={17} strokeWidth={2.4} />}
+                  variant="danger"
+                  size="md"
+                  title="Sign out"
+                  aria-label="Sign out"
+                  onClick={onLogout}
+                />
+              </>
+            ) : (
+              <Button variant="glass" size="sm" onClick={onLogin} style={{ borderRadius: 100 }}>
+                Sign in
               </Button>
-            </>
-          ) : (
-            <Button variant="glass" size="sm" onClick={onLogin} style={{ borderRadius: 100 }}>
-              Sign in
-            </Button>
-          )}
-        </div>
+            )}
+          </GlassPill>
+        )}
       </header>
 
       {/* Mobile overlay */}
@@ -170,40 +175,37 @@ export function Navbar({ items, currentPath, user, onLogin, onLogout, onNavigate
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 40 }}>
-            <button
+            <GlassPill
+              as="button"
               onClick={() => setMobileOpen(false)}
               aria-label="Close menu"
               style={{
-                ...glassPill,
                 width: 52,
                 height: 52,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                border: '1px solid var(--border)',
                 color: 'var(--text-h)',
                 cursor: 'pointer',
                 flexShrink: 0,
               }}
             >
               <X size={22} strokeWidth={2.5} />
-            </button>
+            </GlassPill>
           </div>
 
           <nav style={{ display: 'flex', flexDirection: 'column' }}>
             {items.map((item) => {
               const active = currentPath === item.href;
               return (
-                <button
+                <Link
                   key={item.href}
+                  href={item.href}
                   onClick={() => { onNavigate?.(item.href); setMobileOpen(false); }}
                   style={{
-                    background: 'none',
-                    border: 'none',
                     borderBottom: '1px solid var(--border-strong)',
                     padding: '20px 0',
-                    textAlign: 'left',
-                    cursor: 'pointer',
+                    textDecoration: 'none',
                     fontFamily: 'var(--font-display)',
                     fontWeight: 800,
                     fontSize: 32,
@@ -213,72 +215,77 @@ export function Navbar({ items, currentPath, user, onLogin, onLogout, onNavigate
                   }}
                 >
                   {item.label}
-                </button>
+                </Link>
               );
             })}
           </nav>
 
-          <div style={{ marginTop: 'auto' }}>
-            {user ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <Avatar
-                  initials={user.initials ?? user.name.slice(0, 2).toUpperCase()}
-                  src={user.src}
-                  size="md"
-                />
-                <span
-                  style={{
-                    fontFamily: 'var(--font-display)',
-                    fontWeight: 700,
-                    fontSize: 15,
-                    color: 'var(--text-h)',
-                    flex: 1,
-                  }}
-                >
-                  {user.name}
-                </span>
-                <Button
-                  variant="ghost-danger"
-                  size="sm"
-                  onClick={() => { onLogout?.(); setMobileOpen(false); }}
-                >
-                  Sign out
+          {!hideAuthActions && (
+            <div style={{ marginTop: 'auto' }}>
+              {user ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <Avatar
+                    initials={user.initials ?? user.name.slice(0, 2).toUpperCase()}
+                    src={user.src}
+                    size="md"
+                  />
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-display)',
+                      fontWeight: 700,
+                      fontSize: 15,
+                      color: 'var(--text-h)',
+                      flex: 1,
+                    }}
+                  >
+                    {user.name}
+                  </span>
+                  <Button
+                    variant="ghost-danger"
+                    size="sm"
+                    onClick={() => { onLogout?.(); setMobileOpen(false); }}
+                  >
+                    Sign out
+                  </Button>
+                </div>
+              ) : (
+                <Button variant="glass" size="lg" fullWidth onClick={() => { onLogin?.(); setMobileOpen(false); }}>
+                  Sign in
                 </Button>
-              </div>
-            ) : (
-              <Button variant="glass" size="lg" fullWidth onClick={() => { onLogin?.(); setMobileOpen(false); }}>
-                Sign in
-              </Button>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </>
   );
 }
 
-function NavLink({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+function NavLink({ label, href, active, onClick }: { label: string; href: string; active: boolean; onClick?: () => void }) {
   const [hovered, setHovered] = useState(false);
   const [bouncing, setBouncing] = useState(false);
 
   function handleClick() {
     if (!active) {
       setBouncing(true);
-      onClick();
+      onClick?.();
     }
   }
 
   return (
-    <button
+    <Link
+      href={href}
       onClick={handleClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onAnimationEnd={() => setBouncing(false)}
       style={{
+        display: 'inline-flex',
+        alignItems: 'center',
         height: 34,
         padding: '0 14px',
         borderRadius: 100,
-        border: 'none',
+        textDecoration: 'none',
         cursor: 'pointer',
         fontFamily: 'var(--font-display)',
         fontWeight: 700,
@@ -299,6 +306,6 @@ function NavLink({ label, active, onClick }: { label: string; active: boolean; o
       }}
     >
       {label}
-    </button>
+    </Link>
   );
 }
