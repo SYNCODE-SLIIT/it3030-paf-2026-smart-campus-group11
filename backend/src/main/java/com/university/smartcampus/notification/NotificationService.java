@@ -895,7 +895,7 @@ public class NotificationService {
         }
 
         if (!created.isEmpty()) {
-            preferenceRepository.saveAll(created).forEach(preference ->
+            preferenceRepository.saveAllAndFlush(created).forEach(preference ->
                 preferences.put(preference.getDomain(), preference)
             );
         }
