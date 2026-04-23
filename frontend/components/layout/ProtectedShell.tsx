@@ -206,9 +206,23 @@ function getDefaultSections(workspace: Exclude<WorkspaceKind, 'auto'>, user?: Us
               allowedManagerRoles: ['BOOKING_MANAGER'],
             },
             {
-              label: 'My Tickets',
+              label: 'Tickets',
+              icon: MessageSquare,
+              href: '/booking-managers/tickets',
+              allowedUserTypes: ['MANAGER'],
+              allowedManagerRoles: ['BOOKING_MANAGER'],
+            },
+            {
+              label: 'Assigned Tickets',
               icon: MessageSquare,
               href: '/ticket-managers/tickets',
+              allowedUserTypes: ['MANAGER'],
+              allowedManagerRoles: ['TICKET_MANAGER'],
+            },
+            {
+              label: 'Reported Tickets',
+              icon: MessageSquare,
+              href: '/ticket-managers/reported',
               allowedUserTypes: ['MANAGER'],
               allowedManagerRoles: ['TICKET_MANAGER'],
             },
@@ -422,8 +436,7 @@ export function ProtectedShell({
       <div
         style={{
           minHeight: '100vh',
-          background:
-            'radial-gradient(circle at top left, rgba(238,202,68,.18), transparent 30%), linear-gradient(180deg, var(--bg-subtle) 0%, var(--bg) 100%)',
+          background: 'var(--bg)',
         }}
       >
         <Navbar
@@ -447,8 +460,7 @@ export function ProtectedShell({
     <div
       style={{
         minHeight: '100vh',
-        background:
-          'radial-gradient(circle at top left, rgba(238,202,68,.18), transparent 30%), linear-gradient(180deg, var(--bg-subtle) 0%, var(--bg) 100%)',
+        background: 'var(--bg)',
       }}
     >
       <Sidebar

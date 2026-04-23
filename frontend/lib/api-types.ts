@@ -158,10 +158,70 @@ export interface ResourceResponse {
   createdAt: string;
   updatedAt: string;
   resourceType: ResourceTypeDetails | null;
+  locationName?: string | null;
   locationDetails: LocationDetails | null;
   features: ResourceFeatureDetails[];
   availabilityWindows: ResourceAvailabilityWindow[];
   images: ResourceImageDetails[];
+}
+
+export interface ResourceListItem {
+  id: string;
+  code: string;
+  name: string;
+  category: ResourceCategory;
+  subcategory: string | null;
+  description: string | null;
+  location: string | null;
+  capacity: number | null;
+  quantity: number | null;
+  status: ResourceStatus;
+  bookable: boolean;
+  movable: boolean;
+  availableFrom: string | null;
+  availableTo: string | null;
+  resourceTypeName: string | null;
+  locationName: string | null;
+  buildingName: string | null;
+  managedByRole: ResourceManagedByRole | null;
+}
+
+export interface ResourceListPage {
+  items: ResourceListItem[];
+  page: number;
+  size: number;
+  totalItems: number;
+  totalPages: number;
+}
+
+export interface ResourceOption {
+  id: string;
+  code: string;
+  name: string;
+  category: ResourceCategory;
+  subcategory: string | null;
+  locationName: string | null;
+  location?: string | null;
+  locationDetails?: LocationDetails | null;
+  status: ResourceStatus;
+  bookable: boolean;
+}
+
+export interface ResourceStats {
+  totalResources: number;
+  activeResources: number;
+  bookableResources: number;
+  maintenanceResources: number;
+  outOfServiceResources: number;
+  inactiveResources: number;
+  locationCount: number;
+}
+
+export interface ResourceLookups {
+  types: ResourceTypeOption[];
+  locations: LocationOption[];
+  features: ResourceFeatureOption[];
+  managedRoles: ManagedByRoleOption[];
 }
 
 export interface CreateResourceRequest {
@@ -725,6 +785,48 @@ export interface CreateUserRequest {
   managerRole?: ManagerRole | null;
 }
 
+export interface BulkStudentImportEntry {
+  rowNumber: number;
+  email: string;
+}
+
+export interface BulkStudentImportRequest {
+  students: BulkStudentImportEntry[];
+}
+
+export type BulkStudentImportStatus =
+  | 'VALID'
+  | 'CREATED'
+  | 'INVALID_EMAIL'
+  | 'DUPLICATE_IN_FILE'
+  | 'ALREADY_EXISTS'
+  | 'FAILED';
+
+export interface BulkStudentImportSummary {
+  totalRows: number;
+  validRows: number;
+  createdRows: number;
+  skippedRows: number;
+  failedRows: number;
+  invalidRows: number;
+  duplicateRows: number;
+  existingRows: number;
+}
+
+export interface BulkStudentImportRowResult {
+  rowNumber: number;
+  email: string;
+  normalizedEmail: string | null;
+  status: BulkStudentImportStatus;
+  message: string;
+  userId: string | null;
+}
+
+export interface BulkStudentImportResponse {
+  summary: BulkStudentImportSummary;
+  results: BulkStudentImportRowResult[];
+}
+
 export interface UpdateUserRequest {
   accountStatus?: AccountStatus;
   studentProfile?: StudentProfileInput | null;
@@ -753,6 +855,7 @@ export interface StudentOnboardingRequest {
 export type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED' | 'REJECTED';
 export type TicketCategory = 'ELECTRICAL' | 'NETWORK' | 'EQUIPMENT' | 'FURNITURE' | 'CLEANLINESS' | 'FACILITY_DAMAGE' | 'ACCESS_SECURITY' | 'OTHER';
 export type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+export type TicketQueryScope = 'ASSIGNED' | 'REPORTED';
 export type TicketAnalyticsBucket = 'DAY' | 'WEEK' | 'MONTH';
 
 export interface TicketAnalyticsQuery {

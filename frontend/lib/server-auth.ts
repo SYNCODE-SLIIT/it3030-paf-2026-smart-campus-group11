@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { cache } from 'react';
 
 import { ApiError, getCurrentUser } from '@/lib/api-client';
 import type { ManagerRole, UserResponse, UserType } from '@/lib/api-types';
@@ -11,7 +12,7 @@ interface ServerAuthState {
   isAuthenticated: boolean;
 }
 
-export async function getServerAuthState(): Promise<ServerAuthState> {
+export const getServerAuthState = cache(async (): Promise<ServerAuthState> => {
   try {
     const supabase = await createSupabaseServerClient();
 
@@ -38,7 +39,16 @@ export async function getServerAuthState(): Promise<ServerAuthState> {
 
     const {
       data: { session },
+      error: sessionError,
     } = await supabase.auth.getSession();
+
+    if (sessionError) {
+      return {
+        accessToken: null,
+        appUser: null,
+        isAuthenticated: false,
+      };
+    }
 
     const accessToken = session?.access_token ?? null;
 
@@ -72,7 +82,7 @@ export async function getServerAuthState(): Promise<ServerAuthState> {
       isAuthenticated: false,
     };
   }
-}
+});
 
 export async function getInitialServerAppUser() {
   try {

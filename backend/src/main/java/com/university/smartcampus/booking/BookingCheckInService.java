@@ -1,6 +1,7 @@
 package com.university.smartcampus.booking;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -9,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.university.smartcampus.AppEnums.BookingStatus;
 import com.university.smartcampus.AppEnums.CheckInStatus;
+import com.university.smartcampus.AppEnums.ResourceCategory;
 import com.university.smartcampus.common.exception.BadRequestException;
 import com.university.smartcampus.common.exception.ForbiddenException;
 import com.university.smartcampus.common.exception.NotFoundException;
@@ -48,6 +50,8 @@ public class BookingCheckInService {
             throw new ForbiddenException("You cannot check in this booking.");
         }
 
+        requireSpaceBooking(booking);
+
         if (booking.getStatus() != BookingStatus.APPROVED) {
             throw new BadRequestException("Only approved bookings can be checked in.");
         }
@@ -78,6 +82,8 @@ public class BookingCheckInService {
         BookingEntity booking = bookingRepository.findById(bookingId)
             .orElseThrow(() -> new NotFoundException("Booking not found."));
 
+        requireSpaceBooking(booking);
+
         if (booking.getStatus() != BookingStatus.APPROVED && booking.getStatus() != BookingStatus.CHECKED_IN) {
             throw new BadRequestException("Only approved or checked-in bookings can be marked as no-show.");
         }
@@ -105,6 +111,8 @@ public class BookingCheckInService {
 
         BookingEntity booking = bookingRepository.findById(bookingId)
             .orElseThrow(() -> new NotFoundException("Booking not found."));
+
+        requireSpaceBooking(booking);
 
         if (booking.getStatus() != BookingStatus.CHECKED_IN) {
             throw new BadRequestException("Only checked-in bookings can be completed.");
@@ -136,5 +144,71 @@ public class BookingCheckInService {
             booking.getCheckInStatus(),
             booking.getCheckedInAt()
         );
+    }
+
+    @Transactional
+    public void reconcileEndedSpaceBookings() {
+        Instant now = bookingValidator.currentInstant();
+        autoMarkEndedApprovedSpaceBookingsAsNoShow(now);
+        autoCompleteEndedCheckedInSpaceBookings(now);
+    }
+
+    private void autoMarkEndedApprovedSpaceBookingsAsNoShow(Instant now) {
+        List<BookingEntity> bookings = bookingRepository.findAllByStatusAndEndTimeLessThanEqualOrderByEndTimeAsc(
+            BookingStatus.APPROVED,
+            now
+        );
+        for (BookingEntity booking : bookings) {
+            if (!isEligibleForAutoNoShow(booking, now)) {
+                continue;
+            }
+
+            booking.setCheckInStatus(CheckInStatus.NO_SHOW);
+            booking.setStatus(BookingStatus.NO_SHOW);
+
+            BookingEntity saved = bookingRepository.save(booking);
+            notificationService.notifyBookingNoShow(saved);
+        }
+    }
+
+    private void autoCompleteEndedCheckedInSpaceBookings(Instant now) {
+        List<BookingEntity> bookings = bookingRepository.findAllByStatusAndEndTimeLessThanEqualOrderByEndTimeAsc(
+            BookingStatus.CHECKED_IN,
+            now
+        );
+        for (BookingEntity booking : bookings) {
+            if (!isEligibleForAutoCompletion(booking, now)) {
+                continue;
+            }
+
+            booking.setStatus(BookingStatus.COMPLETED);
+
+            BookingEntity saved = bookingRepository.save(booking);
+            notificationService.notifyBookingCompleted(saved);
+        }
+    }
+
+    private void requireSpaceBooking(BookingEntity booking) {
+        if (booking.getResource() == null || booking.getResource().getCategory() != ResourceCategory.SPACES) {
+            throw new BadRequestException("Check-in is only available for space bookings.");
+        }
+    }
+
+    private boolean isEligibleForAutoNoShow(BookingEntity booking, Instant now) {
+        return booking != null
+            && booking.getStatus() == BookingStatus.APPROVED
+            && booking.getEndTime() != null
+            && !booking.getEndTime().isAfter(now)
+            && booking.getResource() != null
+            && booking.getResource().getCategory() == ResourceCategory.SPACES;
+    }
+
+    private boolean isEligibleForAutoCompletion(BookingEntity booking, Instant now) {
+        return booking != null
+            && booking.getStatus() == BookingStatus.CHECKED_IN
+            && booking.getEndTime() != null
+            && !booking.getEndTime().isAfter(now)
+            && booking.getResource() != null
+            && booking.getResource().getCategory() == ResourceCategory.SPACES;
     }
 }
