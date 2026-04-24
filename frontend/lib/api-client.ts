@@ -10,6 +10,8 @@ import {
   type BulkStudentImportRequest,
   type BulkStudentImportResponse,
   type BookingDecisionRequest,
+  type BookingAnalyticsQuery,
+  type BookingAnalyticsResponse,
   type BookingModificationResponse,
   type BookingResponse,
   type CancelBookingRequest,
@@ -872,6 +874,32 @@ export async function getResourceRemainingRanges(
 export async function listAllBookings(accessToken: string) {
   return request<BookingResponse[]>('/api/admin/bookings', {
     accessToken,
+  });
+}
+
+export async function getBookingAnalytics(accessToken: string, params: BookingAnalyticsQuery = {}) {
+  const query = new URLSearchParams();
+
+  if (params.from) {
+    query.set('from', params.from);
+  }
+  if (params.to) {
+    query.set('to', params.to);
+  }
+  if (params.bucket) {
+    query.set('bucket', params.bucket);
+  }
+  if (params.category) {
+    query.set('category', params.category);
+  }
+  if (params.resourceId) {
+    query.set('resourceId', params.resourceId);
+  }
+
+  const suffix = query.toString();
+  return request<BookingAnalyticsResponse>(`/api/admin/bookings/analytics${suffix ? `?${suffix}` : ''}`, {
+    accessToken,
+    timeoutMs: 20000,
   });
 }
 
