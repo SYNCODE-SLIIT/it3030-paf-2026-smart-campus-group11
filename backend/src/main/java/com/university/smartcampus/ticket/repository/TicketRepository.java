@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.university.smartcampus.ticket.entity.TicketEntity;
 import com.university.smartcampus.common.enums.AppEnums.TicketStatus;
@@ -36,9 +37,23 @@ public interface TicketRepository extends JpaRepository<TicketEntity, UUID>, Jpa
 
     List<TicketEntity> findByStatusIn(List<TicketStatus> statuses);
 
-    long countByStatus(TicketStatus status);
+    @Query("""
+        select (count(t) > 0)
+        from TicketEntity t
+        where t.resource.id = :resourceId
+          and t.status in :statuses
+        """)
+    boolean existsByResourceIdAndStatusIn(
+        @Param("resourceId") UUID resourceId,
+        @Param("statuses") List<TicketStatus> statuses
+    );
 
-    long countByStatusIn(Collection<TicketStatus> statuses);
+    @Query("""
+        select t
+        from TicketEntity t
+        where t.resource.id = :resourceId
+        """)
+    List<TicketEntity> findAllByResourceId(@Param("resourceId") UUID resourceId);
 
     @Query(value = "SELECT nextval('public.ticket_code_seq')", nativeQuery = true)
     Long nextTicketCodeSequence();
