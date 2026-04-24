@@ -52,10 +52,10 @@ services:
           "CMD-SHELL",
           "status=$$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/health || true); [ \"$$status\" = \"200\" ]"
         ]
-      interval: 3s
-      timeout: 5s
-      retries: 20
-      start_period: 20s
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 180s
 
   frontend:
     build: ./frontend
@@ -70,7 +70,7 @@ services:
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
     depends_on:
       backend:
-        condition: service_healthy
+        condition: service_started
     volumes:
       - ./frontend:/app
       - /app/node_modules
