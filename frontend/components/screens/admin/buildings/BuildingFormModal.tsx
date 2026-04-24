@@ -309,11 +309,11 @@ export function BuildingFormModal({
               Cancel
             </Button>
             {step < 2 ? (
-              <Button type="button" size="sm" onClick={handleNext}>
+              <Button key="step-next" type="button" size="sm" onClick={handleNext}>
                 Next
               </Button>
             ) : (
-              <Button type="submit" size="sm" variant="glass" loading={submitting}>
+              <Button key="step-submit" type="submit" size="sm" variant="glass" loading={submitting}>
                 {building ? 'Update Building' : 'Create Building'}
               </Button>
             )}
