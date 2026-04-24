@@ -36,7 +36,7 @@ import type {
   UserType,
 } from '@/lib/api-types';
 import { formatSlaMinutes } from '@/lib/sla';
-import { getAccountStatusLabel, getUserDisplayName, getUserTypeLabel } from '@/lib/user-display';
+import { getAccountStatusChipColor, getAccountStatusLabel, getUserDisplayName, getUserTypeChipColor, getUserTypeLabel } from '@/lib/user-display';
 
 type AnalyticsTab = 'tickets' | 'users';
 type TicketAnalyticsScope = 'ALL' | 'UNASSIGNED' | string;
@@ -128,6 +128,11 @@ function formatRate(value: number | null) {
 
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function formatOptionalDateTime(value: string | null) {
+  if (!value) return 'Never';
+  return formatDateTime(value);
 }
 
 function CountCard({
@@ -229,9 +234,23 @@ function UserAnalyticsContent({ users }: { users: UserResponse[] }) {
   const totalUsers = users.length;
   const activeUsers = users.filter((user) => user.accountStatus === 'ACTIVE').length;
   const pendingInvites = users.filter((user) => user.accountStatus === 'INVITED').length;
+  const suspendedUsers = users.filter((user) => user.accountStatus === 'SUSPENDED').length;
   const inviteSends = users.reduce((total, user) => total + user.inviteSendCount, 0);
   const students = users.filter((user) => user.userType === 'STUDENT');
   const completedStudents = students.filter((user) => user.studentProfile?.onboardingCompleted).length;
+  const now = Date.now();
+  const recentUsers = [...users]
+    .sort((left, right) => new Date(right.invitedAt).getTime() - new Date(left.invitedAt).getTime())
+    .slice(0, 6);
+  const recentSignIns = users
+    .filter((user) => user.lastLoginAt)
+    .sort((left, right) => new Date(right.lastLoginAt ?? 0).getTime() - new Date(left.lastLoginAt ?? 0).getTime())
+    .slice(0, 6);
+  const joinedLastWeek = users.filter((user) => now - new Date(user.invitedAt).getTime() <= 7 * 24 * 60 * 60 * 1000).length;
+  const activeLast30Days = users.filter((user) => {
+    if (!user.lastLoginAt) return false;
+    return now - new Date(user.lastLoginAt).getTime() <= 30 * 24 * 60 * 60 * 1000;
+  }).length;
 
   return (
     <>
@@ -240,6 +259,8 @@ function UserAnalyticsContent({ users }: { users: UserResponse[] }) {
         <CountCard label="Active Users" value={activeUsers} caption={`${percent(activeUsers, totalUsers)} active`} icon={Activity} />
         <CountCard label="Pending Invites" value={pendingInvites} caption="Awaiting access setup" icon={Clock} />
         <CountCard label="Invite Sends" value={inviteSends} caption="Generated access links" icon={UserPlus} />
+        <CountCard label="Joined Last 7 Days" value={joinedLastWeek} caption="Recently added accounts" icon={UserPlus} />
+        <CountCard label="Active Last 30 Days" value={activeLast30Days} caption="Users with recent sign-ins" icon={ShieldCheck} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 18 }}>
@@ -292,6 +313,85 @@ function UserAnalyticsContent({ users }: { users: UserResponse[] }) {
             <UserMeterRow label="Completed" value={completedStudents} total={students.length} />
             <UserMeterRow label="Pending" value={students.length - completedStudents} total={students.length} />
           </div>
+        </Card>
+
+        <Card>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+            <AlertTriangle size={18} color="var(--orange-400)" />
+            <p style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, color: 'var(--text-h)' }}>
+              Access Risk Snapshot
+            </p>
+          </div>
+          <div style={{ display: 'grid', gap: 14 }}>
+            <UserMeterRow label="Suspended Accounts" value={suspendedUsers} total={totalUsers} />
+            <UserMeterRow label="Pending Invites" value={pendingInvites} total={totalUsers} />
+            <UserMeterRow label="Recent Sign-ins" value={activeLast30Days} total={totalUsers} />
+          </div>
+        </Card>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 18 }}>
+        <Card>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+            <UserPlus size={18} color="var(--yellow-600)" />
+            <p style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, color: 'var(--text-h)' }}>
+              Recent Users
+            </p>
+          </div>
+          {recentUsers.length === 0 ? (
+            <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 13 }}>No users found yet.</p>
+          ) : (
+            <div style={{ display: 'grid', gap: 12 }}>
+              {recentUsers.map((user) => (
+                <div key={user.id} style={{ display: 'grid', gap: 6, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ color: 'var(--text-h)', fontWeight: 800 }}>{getUserDisplayName(user)}</span>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <Chip color={getUserTypeChipColor(user.userType)} dot>
+                        {getUserTypeLabel(user.userType)}
+                      </Chip>
+                      <Chip color={getAccountStatusChipColor(user.accountStatus)} dot>
+                        {getAccountStatusLabel(user.accountStatus)}
+                      </Chip>
+                    </div>
+                  </div>
+                  <span style={{ color: 'var(--text-body)', fontSize: 12.5 }}>{user.email}</span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                    Invited {formatDateTime(user.invitedAt)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        <Card>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+            <Activity size={18} color="var(--yellow-600)" />
+            <p style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, color: 'var(--text-h)' }}>
+              Recent Sign-ins
+            </p>
+          </div>
+          {recentSignIns.length === 0 ? (
+            <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 13 }}>No sign-in activity recorded yet.</p>
+          ) : (
+            <div style={{ display: 'grid', gap: 12 }}>
+              {recentSignIns.map((user) => (
+                <div key={user.id} style={{ display: 'grid', gap: 6, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ color: 'var(--text-h)', fontWeight: 800 }}>{getUserDisplayName(user)}</span>
+                    <Chip color={getUserTypeChipColor(user.userType)} dot>
+                      {getUserTypeLabel(user.userType)}
+                    </Chip>
+                  </div>
+                  <span style={{ color: 'var(--text-body)', fontSize: 12.5 }}>{user.email}</span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                    Last login {formatOptionalDateTime(user.lastLoginAt)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
       </div>
     </>
