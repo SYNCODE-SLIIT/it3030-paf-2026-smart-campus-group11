@@ -18,6 +18,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.university.smartcampus.audit.AuditEventService;
 import com.university.smartcampus.booking.BookingRepository;
 import com.university.smartcampus.common.enums.AppEnums.AccountStatus;
 import com.university.smartcampus.common.enums.AppEnums.TicketPriority;
@@ -60,6 +61,9 @@ class NotificationServiceTest {
     @Mock
     private BookingRepository bookingRepository;
 
+    @Mock
+    private AuditEventService auditEventService;
+
     private SmartCampusProperties properties;
     private NotificationService notificationService;
 
@@ -76,7 +80,8 @@ class NotificationServiceTest {
             userRepository,
             managerRepository,
             bookingRepository,
-            properties
+            properties,
+            auditEventService
         );
     }
 

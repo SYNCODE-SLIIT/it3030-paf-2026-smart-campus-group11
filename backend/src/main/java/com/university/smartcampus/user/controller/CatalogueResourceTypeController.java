@@ -21,6 +21,7 @@ import com.university.smartcampus.resource.ResourceTypeDtos.CreateResourceTypeRe
 import com.university.smartcampus.resource.ResourceTypeDtos.ResourceTypeResponse;
 import com.university.smartcampus.resource.ResourceTypeDtos.UpdateResourceTypeRequest;
 import com.university.smartcampus.resource.ResourceTypeService;
+import com.university.smartcampus.user.entity.UserEntity;
 
 import jakarta.validation.Valid;
 
@@ -48,8 +49,8 @@ public class CatalogueResourceTypeController {
         @Valid @RequestBody CreateResourceTypeRequest request,
         Authentication authentication
     ) {
-        currentUserService.requireAdminOrCatalogManager(authentication);
-        return resourceTypeService.createResourceType(request);
+        UserEntity actor = currentUserService.requireAdminOrCatalogManager(authentication);
+        return resourceTypeService.createResourceType(request, actor);
     }
 
     @PatchMapping("/{id}")
@@ -58,13 +59,13 @@ public class CatalogueResourceTypeController {
         @Valid @RequestBody UpdateResourceTypeRequest request,
         Authentication authentication
     ) {
-        currentUserService.requireAdminOrCatalogManager(authentication);
-        return resourceTypeService.updateResourceType(id, request);
+        UserEntity actor = currentUserService.requireAdminOrCatalogManager(authentication);
+        return resourceTypeService.updateResourceType(id, request, actor);
     }
 
     @DeleteMapping("/{id}")
     public MessageResponse deleteResourceType(@PathVariable UUID id, Authentication authentication) {
-        currentUserService.requireAdminOrCatalogManager(authentication);
-        return resourceTypeService.deleteResourceType(id);
+        UserEntity actor = currentUserService.requireAdminOrCatalogManager(authentication);
+        return resourceTypeService.deleteResourceType(id, actor);
     }
 }

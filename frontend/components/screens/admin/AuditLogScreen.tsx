@@ -41,6 +41,7 @@ export function AuditLogScreen() {
 
   const [actionFilter, setActionFilter] = React.useState<AdminAction | ''>('');
   const [performedByFilter, setPerformedByFilter] = React.useState('');
+  const [targetUserFilter, setTargetUserFilter] = React.useState('');
   const [fromDate, setFromDate] = React.useState('');
   const [toDate, setToDate] = React.useState('');
 
@@ -63,6 +64,7 @@ export function AuditLogScreen() {
       const response = await listAuditLogs(accessToken, {
         action: actionFilter,
         performedById: performedByFilter.trim() || undefined,
+        targetUserEmail: targetUserFilter.trim() || undefined,
         from: fromDate ? toStartOfDayIso(fromDate) : undefined,
         to: toDate ? toEndOfDayIso(toDate) : undefined,
         page,
@@ -83,7 +85,7 @@ export function AuditLogScreen() {
     } finally {
       setLoading(false);
     }
-  }, [accessToken, actionFilter, performedByFilter, fromDate, toDate, page]);
+  }, [accessToken, actionFilter, performedByFilter, targetUserFilter, fromDate, toDate, page]);
 
   React.useEffect(() => {
     void loadLogs();
@@ -104,6 +106,7 @@ export function AuditLogScreen() {
   function resetFilters() {
     setActionFilter('');
     setPerformedByFilter('');
+    setTargetUserFilter('');
     setFromDate('');
     setToDate('');
     setPage(0);
@@ -139,7 +142,7 @@ export function AuditLogScreen() {
             Audit Log
           </h1>
           <p style={{ margin: '7px 0 0', color: 'var(--text-muted)', fontSize: 14 }}>
-            Track every privileged user-management action with timestamped event details.
+            Review account-level administrative activity, then narrow the timeline by actor, affected user, or date.
           </p>
         </div>
 
@@ -187,11 +190,21 @@ export function AuditLogScreen() {
             />
 
             <Input
-              label="Performed By (Admin UUID)"
+              label="Performed By (Actor UUID)"
               placeholder="Optional actor ID"
               value={performedByFilter}
               onChange={(event) => {
                 setPerformedByFilter(event.target.value);
+                setPage(0);
+              }}
+            />
+
+            <Input
+              label="Affected User"
+              placeholder="Filter by user email"
+              value={targetUserFilter}
+              onChange={(event) => {
+                setTargetUserFilter(event.target.value);
                 setPage(0);
               }}
             />

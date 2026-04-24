@@ -18,6 +18,8 @@ import org.springframework.util.StringUtils;
 
 import com.university.smartcampus.AppEnums.BookingStatus;
 import com.university.smartcampus.AppEnums.ResourceStatus;
+import com.university.smartcampus.audit.AuditEnums.AuditDomain;
+import com.university.smartcampus.audit.AuditEventService;
 import com.university.smartcampus.booking.BookingEntity;
 import com.university.smartcampus.booking.BookingModificationEntity;
 import com.university.smartcampus.booking.BookingRepository;
@@ -63,6 +65,7 @@ public class NotificationService {
     private final ManagerRepository managerRepository;
     private final BookingRepository bookingRepository;
     private final SmartCampusProperties properties;
+    private final AuditEventService auditEventService;
 
     public NotificationService(
         NotificationEventRepository eventRepository,
@@ -73,7 +76,8 @@ public class NotificationService {
         UserRepository userRepository,
         ManagerRepository managerRepository,
         BookingRepository bookingRepository,
-        SmartCampusProperties properties
+        SmartCampusProperties properties,
+        AuditEventService auditEventService
     ) {
         this.eventRepository = eventRepository;
         this.recipientRepository = recipientRepository;
@@ -84,6 +88,7 @@ public class NotificationService {
         this.managerRepository = managerRepository;
         this.bookingRepository = bookingRepository;
         this.properties = properties;
+        this.auditEventService = auditEventService;
     }
 
     @Transactional(readOnly = true)
@@ -115,6 +120,23 @@ public class NotificationService {
             recipient.setReadAt(Instant.now());
         }
 
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("notificationId", recipient.getId());
+        details.put("eventId", recipient.getEvent() == null ? null : recipient.getEvent().getId());
+        details.put("notificationDomain", recipient.getEvent() == null ? null : recipient.getEvent().getDomain());
+        details.put("notificationType", recipient.getEvent() == null ? null : recipient.getEvent().getType());
+        auditEventService.record(
+            AuditDomain.NOTIFICATION,
+            "NOTIFICATION_MARKED_READ",
+            "Notification Marked Read",
+            user,
+            user,
+            "NOTIFICATION",
+            recipient.getId(),
+            recipient.getEvent() == null ? "Notification" : recipient.getEvent().getTitle(),
+            details
+        );
+
         return toNotificationResponse(recipient);
     }
 
@@ -122,6 +144,17 @@ public class NotificationService {
     public NotificationUnreadCountResponse markAllAsRead(UserEntity user) {
         Objects.requireNonNull(user, "User is required.");
         recipientRepository.markAllUnreadAsRead(user.getId(), Instant.now());
+        auditEventService.record(
+            AuditDomain.NOTIFICATION,
+            "NOTIFICATIONS_MARKED_READ",
+            "Notifications Marked Read",
+            user,
+            user,
+            "NOTIFICATION",
+            null,
+            "All Notifications",
+            Map.of("scope", "all")
+        );
         return unreadCount(user);
     }
 
@@ -136,12 +169,31 @@ public class NotificationService {
         Objects.requireNonNull(request, "Request is required.");
 
         NotificationPreferenceEntity preference = requirePreference(user);
+        boolean previousInAppEnabled = preference.isInAppEnabled();
+        boolean previousEmailEnabled = preference.isEmailEnabled();
         if (request.inAppEnabled() != null) {
             preference.setInAppEnabled(request.inAppEnabled());
         }
         if (request.emailEnabled() != null) {
             preference.setEmailEnabled(request.emailEnabled());
         }
+
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("previousInAppEnabled", previousInAppEnabled);
+        details.put("currentInAppEnabled", preference.isInAppEnabled());
+        details.put("previousEmailEnabled", previousEmailEnabled);
+        details.put("currentEmailEnabled", preference.isEmailEnabled());
+        auditEventService.record(
+            AuditDomain.NOTIFICATION,
+            "NOTIFICATION_PREFERENCES_UPDATED",
+            "Notification Preferences Updated",
+            user,
+            user,
+            "NOTIFICATION_PREFERENCES",
+            user.getId(),
+            user.getEmail(),
+            details
+        );
 
         return toPreferencesResponse(preference);
     }

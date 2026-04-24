@@ -5,7 +5,9 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -15,6 +17,8 @@ import org.springframework.util.StringUtils;
 
 import com.university.smartcampus.AppEnums.BookingStatus;
 import com.university.smartcampus.AppEnums.RecurrencePattern;
+import com.university.smartcampus.audit.AuditEnums.AuditDomain;
+import com.university.smartcampus.audit.AuditEventService;
 import com.university.smartcampus.common.exception.BadRequestException;
 import com.university.smartcampus.common.exception.NotFoundException;
 import com.university.smartcampus.notification.NotificationService;
@@ -31,6 +35,7 @@ public class RecurringBookingService {
     private final BookingValidator bookingValidator;
     private final BookingDecisionService bookingDecisionService;
     private final NotificationService notificationService;
+    private final AuditEventService auditEventService;
 
     public RecurringBookingService(
         RecurringBookingRepository recurringBookingRepository,
@@ -38,7 +43,8 @@ public class RecurringBookingService {
         ResourceService resourceService,
         BookingValidator bookingValidator,
         BookingDecisionService bookingDecisionService,
-        NotificationService notificationService
+        NotificationService notificationService,
+        AuditEventService auditEventService
     ) {
         this.recurringBookingRepository = recurringBookingRepository;
         this.bookingRepository = bookingRepository;
@@ -46,6 +52,7 @@ public class RecurringBookingService {
         this.bookingValidator = bookingValidator;
         this.bookingDecisionService = bookingDecisionService;
         this.notificationService = notificationService;
+        this.auditEventService = auditEventService;
     }
 
     @Transactional
@@ -111,6 +118,17 @@ public class RecurringBookingService {
         
         // Generate initial bookings
         generateBookingsForRecurringPattern(saved);
+        auditEventService.record(
+            AuditDomain.BOOKING,
+            "RECURRING_BOOKING_CREATED",
+            "Recurring Booking Created",
+            requester,
+            requester,
+            "RECURRING_BOOKING",
+            saved.getId(),
+            recurringAuditLabel(saved),
+            recurringAuditDetails(saved, null)
+        );
         
         return toRecurringResponse(saved);
     }
@@ -206,6 +224,17 @@ public class RecurringBookingService {
         
         recurring.setActive(false);
         RecurringBookingEntity saved = recurringBookingRepository.save(recurring);
+        auditEventService.record(
+            AuditDomain.BOOKING,
+            "RECURRING_BOOKING_DEACTIVATED",
+            "Recurring Booking Deactivated",
+            requester,
+            requester,
+            "RECURRING_BOOKING",
+            saved.getId(),
+            recurringAuditLabel(saved),
+            recurringAuditDetails(saved, null)
+        );
         return toRecurringResponse(saved);
     }
 
@@ -227,6 +256,18 @@ public class RecurringBookingService {
         for (BookingEntity booking : pendingBookings) {
             bookingDecisionService.approveBooking(booking.getId(), actor);
         }
+
+        auditEventService.record(
+            AuditDomain.BOOKING,
+            "RECURRING_BOOKING_PENDING_APPROVED",
+            "Recurring Booking Pending Approved",
+            actor,
+            recurring.getRequester(),
+            "RECURRING_BOOKING",
+            recurring.getId(),
+            recurringAuditLabel(recurring),
+            recurringAuditDetails(recurring, pendingBookings.size())
+        );
 
         return toRecurringResponse(recurring);
     }
@@ -272,6 +313,17 @@ public class RecurringBookingService {
         }
 
         RecurringBookingEntity saved = recurringBookingRepository.save(recurring);
+        auditEventService.record(
+            AuditDomain.BOOKING,
+            "RECURRING_BOOKING_FUTURE_CANCELLED",
+            "Recurring Booking Future Cancelled",
+            actor,
+            saved.getRequester(),
+            "RECURRING_BOOKING",
+            saved.getId(),
+            recurringAuditLabel(saved),
+            recurringAuditDetails(saved, bookingsToCancel.size())
+        );
         return toRecurringResponse(saved);
     }
 
@@ -321,5 +373,24 @@ public class RecurringBookingService {
     }
 
     private record BookingWindow(Instant startTime, Instant endTime) {
+    }
+
+    private String recurringAuditLabel(RecurringBookingEntity recurring) {
+        String resourceCode = recurring.getResource() == null ? "Unknown resource" : recurring.getResource().getCode();
+        return resourceCode + " @ " + recurring.getStartDate();
+    }
+
+    private Map<String, Object> recurringAuditDetails(RecurringBookingEntity recurring, Integer affectedBookings) {
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("resourceId", recurring.getResource() == null ? null : recurring.getResource().getId());
+        details.put("resourceCode", recurring.getResource() == null ? null : recurring.getResource().getCode());
+        details.put("requesterId", recurring.getRequester() == null ? null : recurring.getRequester().getId());
+        details.put("recurrencePattern", recurring.getRecurrencePattern() == null ? null : recurring.getRecurrencePattern().name());
+        details.put("startDate", recurring.getStartDate());
+        details.put("endDate", recurring.getEndDate());
+        details.put("occurrenceCount", recurring.getOccurrenceCount());
+        details.put("active", recurring.isActive());
+        details.put("affectedBookings", affectedBookings);
+        return details;
     }
 }

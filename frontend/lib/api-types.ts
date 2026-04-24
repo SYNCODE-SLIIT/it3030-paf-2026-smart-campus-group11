@@ -755,6 +755,7 @@ export interface AuditLogPageResponse {
 export interface AuditLogFilters {
   action?: AdminAction | '';
   performedById?: string;
+  targetUserEmail?: string;
   from?: string;
   to?: string;
   page?: number;

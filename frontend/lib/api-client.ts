@@ -444,6 +444,9 @@ export async function listAuditLogs(accessToken: string, filters: AuditLogFilter
   if (filters.performedById) {
     params.set('performedById', filters.performedById);
   }
+  if (filters.targetUserEmail) {
+    params.set('targetUserEmail', filters.targetUserEmail);
+  }
   if (filters.from) {
     params.set('from', filters.from);
   }

@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import com.university.smartcampus.audit.AuditEnums.AuditDomain;
+import com.university.smartcampus.audit.AuditEventService;
 import com.university.smartcampus.common.dto.ApiDtos.MessageResponse;
 import com.university.smartcampus.common.exception.BadRequestException;
 import com.university.smartcampus.common.exception.ConflictException;
@@ -15,6 +17,7 @@ import com.university.smartcampus.common.exception.NotFoundException;
 import com.university.smartcampus.resource.ResourceTypeDtos.CreateResourceTypeRequest;
 import com.university.smartcampus.resource.ResourceTypeDtos.ResourceTypeResponse;
 import com.university.smartcampus.resource.ResourceTypeDtos.UpdateResourceTypeRequest;
+import com.university.smartcampus.user.entity.UserEntity;
 
 @Service
 public class ResourceTypeService {
@@ -22,15 +25,18 @@ public class ResourceTypeService {
     private final ResourceTypeRepository resourceTypeRepository;
     private final ResourceRepository resourceRepository;
     private final ResourceTypeMapper resourceTypeMapper;
+    private final AuditEventService auditEventService;
 
     public ResourceTypeService(
         ResourceTypeRepository resourceTypeRepository,
         ResourceRepository resourceRepository,
-        ResourceTypeMapper resourceTypeMapper
+        ResourceTypeMapper resourceTypeMapper,
+        AuditEventService auditEventService
     ) {
         this.resourceTypeRepository = resourceTypeRepository;
         this.resourceRepository = resourceRepository;
         this.resourceTypeMapper = resourceTypeMapper;
+        this.auditEventService = auditEventService;
     }
 
     @Transactional(readOnly = true)
@@ -42,6 +48,11 @@ public class ResourceTypeService {
 
     @Transactional
     public ResourceTypeResponse createResourceType(CreateResourceTypeRequest request) {
+        return createResourceType(request, null);
+    }
+
+    @Transactional
+    public ResourceTypeResponse createResourceType(CreateResourceTypeRequest request, UserEntity actor) {
         String normalizedCode = normalizeRequiredCode(request.code());
         String normalizedName = normalizeRequiredName(request.name());
         ensureCodeAvailable(normalizedCode, null);
@@ -56,11 +67,32 @@ public class ResourceTypeService {
             request.capacityRequired()
         );
 
-        return resourceTypeMapper.toResponse(resourceTypeRepository.save(resourceType));
+        ResourceType saved = resourceTypeRepository.save(resourceType);
+        auditEventService.record(
+            AuditDomain.CATALOG,
+            "RESOURCE_TYPE_CREATED",
+            "Resource Type Created",
+            actor,
+            null,
+            "RESOURCE_TYPE",
+            saved.getId(),
+            saved.getCode() + " - " + saved.getName(),
+            java.util.Map.of(
+                "code", saved.getCode(),
+                "name", saved.getName(),
+                "category", saved.getCategory() == null ? null : saved.getCategory().name()
+            )
+        );
+        return resourceTypeMapper.toResponse(saved);
     }
 
     @Transactional
     public ResourceTypeResponse updateResourceType(UUID id, UpdateResourceTypeRequest request) {
+        return updateResourceType(id, request, null);
+    }
+
+    @Transactional
+    public ResourceTypeResponse updateResourceType(UUID id, UpdateResourceTypeRequest request, UserEntity actor) {
         ResourceType resourceType = getResourceType(id);
         String normalizedCode = null;
         String normalizedName = null;
@@ -87,16 +119,52 @@ public class ResourceTypeService {
             request.capacityRequired()
         );
 
+        auditEventService.record(
+            AuditDomain.CATALOG,
+            "RESOURCE_TYPE_UPDATED",
+            "Resource Type Updated",
+            actor,
+            null,
+            "RESOURCE_TYPE",
+            resourceType.getId(),
+            resourceType.getCode() + " - " + resourceType.getName(),
+            java.util.Map.of(
+                "code", resourceType.getCode(),
+                "name", resourceType.getName(),
+                "category", resourceType.getCategory() == null ? null : resourceType.getCategory().name()
+            )
+        );
+
         return resourceTypeMapper.toResponse(resourceType);
     }
 
     @Transactional
     public MessageResponse deleteResourceType(UUID id) {
+        return deleteResourceType(id, null);
+    }
+
+    @Transactional
+    public MessageResponse deleteResourceType(UUID id, UserEntity actor) {
         if (resourceRepository.existsByResourceType_Id(id)) {
             throw new ConflictException("This resource type is already assigned to one or more resources and cannot be removed.");
         }
 
         ResourceType resourceType = getResourceType(id);
+        auditEventService.record(
+            AuditDomain.CATALOG,
+            "RESOURCE_TYPE_DELETED",
+            "Resource Type Deleted",
+            actor,
+            null,
+            "RESOURCE_TYPE",
+            resourceType.getId(),
+            resourceType.getCode() + " - " + resourceType.getName(),
+            java.util.Map.of(
+                "code", resourceType.getCode(),
+                "name", resourceType.getName(),
+                "category", resourceType.getCategory() == null ? null : resourceType.getCategory().name()
+            )
+        );
         resourceTypeRepository.delete(resourceType);
         return new MessageResponse("Resource type removed.");
     }

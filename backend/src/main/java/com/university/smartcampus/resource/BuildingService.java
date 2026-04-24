@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import com.university.smartcampus.audit.AuditEnums.AuditDomain;
+import com.university.smartcampus.audit.AuditEventService;
 import com.university.smartcampus.common.dto.ApiDtos.MessageResponse;
 import com.university.smartcampus.common.exception.BadRequestException;
 import com.university.smartcampus.common.exception.ConflictException;
@@ -15,16 +17,23 @@ import com.university.smartcampus.common.exception.NotFoundException;
 import com.university.smartcampus.resource.BuildingDtos.BuildingResponse;
 import com.university.smartcampus.resource.BuildingDtos.CreateBuildingRequest;
 import com.university.smartcampus.resource.BuildingDtos.UpdateBuildingRequest;
+import com.university.smartcampus.user.entity.UserEntity;
 
 @Service
 public class BuildingService {
 
     private final BuildingRepository buildingRepository;
     private final BuildingMapper buildingMapper;
+    private final AuditEventService auditEventService;
 
-    public BuildingService(BuildingRepository buildingRepository, BuildingMapper buildingMapper) {
+    public BuildingService(
+        BuildingRepository buildingRepository,
+        BuildingMapper buildingMapper,
+        AuditEventService auditEventService
+    ) {
         this.buildingRepository = buildingRepository;
         this.buildingMapper = buildingMapper;
+        this.auditEventService = auditEventService;
     }
 
     @Transactional(readOnly = true)
@@ -36,6 +45,11 @@ public class BuildingService {
 
     @Transactional
     public BuildingResponse createBuilding(CreateBuildingRequest request) {
+        return createBuilding(request, null);
+    }
+
+    @Transactional
+    public BuildingResponse createBuilding(CreateBuildingRequest request, UserEntity actor) {
         String normalizedName = normalizeRequiredName(request.buildingName());
         String normalizedCode = normalizeRequiredCode(request.buildingCode());
 
@@ -47,11 +61,33 @@ public class BuildingService {
         building.setBuildingCode(normalizedCode);
         normalizePrefixFields(building);
 
-        return buildingMapper.toResponse(buildingRepository.save(building));
+        Building saved = buildingRepository.save(building);
+        auditEventService.record(
+            AuditDomain.CATALOG,
+            "BUILDING_CREATED",
+            "Building Created",
+            actor,
+            null,
+            "BUILDING",
+            saved.getId(),
+            saved.getBuildingCode() + " - " + saved.getBuildingName(),
+            java.util.Map.of(
+                "buildingCode", saved.getBuildingCode(),
+                "buildingName", saved.getBuildingName(),
+                "buildingType", saved.getBuildingType() == null ? null : saved.getBuildingType().name(),
+                "active", saved.isActive()
+            )
+        );
+        return buildingMapper.toResponse(saved);
     }
 
     @Transactional
     public BuildingResponse updateBuilding(UUID id, UpdateBuildingRequest request) {
+        return updateBuilding(id, request, null);
+    }
+
+    @Transactional
+    public BuildingResponse updateBuilding(UUID id, UpdateBuildingRequest request, UserEntity actor) {
         Building building = getBuilding(id);
         String normalizedName = null;
         String normalizedCode = null;
@@ -78,13 +114,50 @@ public class BuildingService {
 
         normalizePrefixFields(building);
 
+        auditEventService.record(
+            AuditDomain.CATALOG,
+            "BUILDING_UPDATED",
+            "Building Updated",
+            actor,
+            null,
+            "BUILDING",
+            building.getId(),
+            building.getBuildingCode() + " - " + building.getBuildingName(),
+            java.util.Map.of(
+                "buildingCode", building.getBuildingCode(),
+                "buildingName", building.getBuildingName(),
+                "buildingType", building.getBuildingType() == null ? null : building.getBuildingType().name(),
+                "active", building.isActive()
+            )
+        );
+
         return buildingMapper.toResponse(building);
     }
 
     @Transactional
     public MessageResponse deactivateBuilding(UUID id) {
+        return deactivateBuilding(id, null);
+    }
+
+    @Transactional
+    public MessageResponse deactivateBuilding(UUID id, UserEntity actor) {
         Building building = getBuilding(id);
         building.setActive(false);
+        auditEventService.record(
+            AuditDomain.CATALOG,
+            "BUILDING_DEACTIVATED",
+            "Building Deactivated",
+            actor,
+            null,
+            "BUILDING",
+            building.getId(),
+            building.getBuildingCode() + " - " + building.getBuildingName(),
+            java.util.Map.of(
+                "buildingCode", building.getBuildingCode(),
+                "buildingName", building.getBuildingName(),
+                "active", building.isActive()
+            )
+        );
         return new MessageResponse("Building deactivated.");
     }
 

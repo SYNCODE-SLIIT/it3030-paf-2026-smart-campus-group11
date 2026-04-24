@@ -4,7 +4,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -13,6 +15,8 @@ import org.springframework.util.StringUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.university.smartcampus.AppEnums.BookingStatus;
+import com.university.smartcampus.audit.AuditEnums.AuditDomain;
+import com.university.smartcampus.audit.AuditEventService;
 import com.university.smartcampus.common.exception.BadRequestException;
 import com.university.smartcampus.common.exception.ForbiddenException;
 import com.university.smartcampus.common.exception.NotFoundException;
@@ -37,19 +41,22 @@ public class BookingService {
     private final BookingValidator bookingValidator;
     private final BookingResourceAvailabilityService bookingResourceAvailabilityService;
     private final NotificationService notificationService;
+    private final AuditEventService auditEventService;
 
     public BookingService(
         BookingRepository bookingRepository,
         ResourceService resourceService,
         BookingValidator bookingValidator,
         BookingResourceAvailabilityService bookingResourceAvailabilityService,
-        NotificationService notificationService
+        NotificationService notificationService,
+        AuditEventService auditEventService
     ) {
         this.bookingRepository = bookingRepository;
         this.resourceService = resourceService;
         this.bookingValidator = bookingValidator;
         this.bookingResourceAvailabilityService = bookingResourceAvailabilityService;
         this.notificationService = notificationService;
+        this.auditEventService = auditEventService;
     }
 
     @Transactional
@@ -84,6 +91,17 @@ public class BookingService {
         booking.setStatus(BookingStatus.PENDING);
 
         BookingEntity saved = bookingRepository.save(booking);
+        auditEventService.record(
+            AuditDomain.BOOKING,
+            "BOOKING_CREATED",
+            "Booking Created",
+            requester,
+            requester,
+            "BOOKING",
+            saved.getId(),
+            bookingAuditLabel(saved),
+            bookingAuditDetails(saved)
+        );
         notificationService.notifyBookingCreated(saved);
         return toResponse(saved);
     }
@@ -224,6 +242,17 @@ public class BookingService {
         booking.setCancelledAt(bookingValidator.currentInstant());
 
         BookingEntity saved = bookingRepository.save(booking);
+        auditEventService.record(
+            AuditDomain.BOOKING,
+            "BOOKING_CANCELLED_BY_REQUESTER",
+            "Booking Cancelled By Requester",
+            requester,
+            requester,
+            "BOOKING",
+            saved.getId(),
+            bookingAuditLabel(saved),
+            bookingAuditDetails(saved)
+        );
         notificationService.notifyBookingCancelledByRequester(saved, requester);
         return toResponse(saved);
     }
@@ -277,5 +306,23 @@ public class BookingService {
         }
 
         return requester.getId() != null ? requester.getId().toString() : null;
+    }
+
+    private String bookingAuditLabel(BookingEntity booking) {
+        String resourceCode = booking.getResource() == null ? "Unknown resource" : booking.getResource().getCode();
+        return resourceCode + " @ " + booking.getStartTime();
+    }
+
+    private Map<String, Object> bookingAuditDetails(BookingEntity booking) {
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("resourceId", booking.getResource() == null ? null : booking.getResource().getId());
+        details.put("resourceCode", booking.getResource() == null ? null : booking.getResource().getCode());
+        details.put("requesterId", booking.getRequester() == null ? null : booking.getRequester().getId());
+        details.put("status", booking.getStatus() == null ? null : booking.getStatus().name());
+        details.put("startTime", booking.getStartTime());
+        details.put("endTime", booking.getEndTime());
+        details.put("purpose", booking.getPurpose());
+        details.put("cancellationReason", booking.getCancellationReason());
+        return details;
     }
 }

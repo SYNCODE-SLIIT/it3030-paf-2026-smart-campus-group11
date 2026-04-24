@@ -4,9 +4,11 @@ import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -19,6 +21,8 @@ import org.springframework.util.StringUtils;
 
 import com.university.smartcampus.AppEnums.ResourceCategory;
 import com.university.smartcampus.AppEnums.ResourceStatus;
+import com.university.smartcampus.audit.AuditEnums.AuditDomain;
+import com.university.smartcampus.audit.AuditEventService;
 import com.university.smartcampus.common.dto.ApiDtos.MessageResponse;
 import com.university.smartcampus.common.exception.BadRequestException;
 import com.university.smartcampus.common.exception.ConflictException;
@@ -73,6 +77,7 @@ public class ResourceService {
     private final ResourceFeatureRepository resourceFeatureRepository;
     private final ResourceMapper resourceMapper;
     private final NotificationService notificationService;
+    private final AuditEventService auditEventService;
 
     public ResourceService(
         ResourceRepository resourceRepository,
@@ -80,7 +85,8 @@ public class ResourceService {
         LocationRepository locationRepository,
         ResourceFeatureRepository resourceFeatureRepository,
         ResourceMapper resourceMapper,
-        NotificationService notificationService
+        NotificationService notificationService,
+        AuditEventService auditEventService
     ) {
         this.resourceRepository = resourceRepository;
         this.resourceTypeRepository = resourceTypeRepository;
@@ -88,6 +94,7 @@ public class ResourceService {
         this.resourceFeatureRepository = resourceFeatureRepository;
         this.resourceMapper = resourceMapper;
         this.notificationService = notificationService;
+        this.auditEventService = auditEventService;
     }
 
     @Transactional
@@ -134,6 +141,17 @@ public class ResourceService {
         resource.setFeatures(resourceType.isFeaturesEnabled() ? resolveFeatures(request.featureCodes()) : new HashSet<>());
         syncLegacyCompatibilityFields(resource, resourceType, location);
         ResourceEntity saved = resourceRepository.save(resource);
+        auditEventService.record(
+            AuditDomain.CATALOG,
+            "RESOURCE_CREATED",
+            "Resource Created",
+            actor,
+            null,
+            "RESOURCE",
+            saved.getId(),
+            resourceAuditLabel(saved),
+            resourceAuditDetails(saved, null)
+        );
         notificationService.notifyResourceCreated(saved, actor);
         return resourceMapper.toResourceResponse(saved);
     }
@@ -334,6 +352,31 @@ public class ResourceService {
         );
         syncLegacyCompatibilityFields(resource, nextResourceType, nextLocation);
 
+        auditEventService.record(
+            AuditDomain.CATALOG,
+            "RESOURCE_UPDATED",
+            "Resource Updated",
+            actor,
+            null,
+            "RESOURCE",
+            resource.getId(),
+            resourceAuditLabel(resource),
+            resourceAuditDetails(resource, oldStatus)
+        );
+        if (oldStatus != resource.getStatus()) {
+            auditEventService.record(
+                AuditDomain.CATALOG,
+                "RESOURCE_STATUS_CHANGED",
+                "Resource Status Changed",
+                actor,
+                null,
+                "RESOURCE",
+                resource.getId(),
+                resourceAuditLabel(resource),
+                resourceAuditDetails(resource, oldStatus)
+            );
+        }
+
         notificationService.notifyResourceUpdated(resource, actor);
         notificationService.notifyResourceStatusChanged(resource, oldStatus, actor);
         return resourceMapper.toResourceResponse(resource);
@@ -349,6 +392,17 @@ public class ResourceService {
         ResourceEntity resource = getResourceEntity(id);
         ResourceStatus oldStatus = resource.getStatus();
         resource.setStatus(ResourceStatus.INACTIVE);
+        auditEventService.record(
+            AuditDomain.CATALOG,
+            "RESOURCE_DEACTIVATED",
+            "Resource Deactivated",
+            actor,
+            null,
+            "RESOURCE",
+            resource.getId(),
+            resourceAuditLabel(resource),
+            resourceAuditDetails(resource, oldStatus)
+        );
         notificationService.notifyResourceStatusChanged(resource, oldStatus, actor);
         return new MessageResponse("Resource removed.");
     }
@@ -370,6 +424,23 @@ public class ResourceService {
     private ResourceEntity getResourceEntity(UUID id) {
         return resourceRepository.findById(id)
             .orElseThrow(() -> new NotFoundException("Resource not found."));
+    }
+
+    private String resourceAuditLabel(ResourceEntity resource) {
+        return resource.getCode() + " - " + resource.getName();
+    }
+
+    private Map<String, Object> resourceAuditDetails(ResourceEntity resource, ResourceStatus previousStatus) {
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("code", resource.getCode());
+        details.put("name", resource.getName());
+        details.put("category", resource.getCategory() == null ? null : resource.getCategory().name());
+        details.put("status", resource.getStatus() == null ? null : resource.getStatus().name());
+        details.put("previousStatus", previousStatus == null ? null : previousStatus.name());
+        details.put("managedByRole", resource.getManagedByRole());
+        details.put("locationId", resource.getLocationEntity() == null ? null : resource.getLocationEntity().getId());
+        details.put("resourceTypeId", resource.getResourceType() == null ? null : resource.getResourceType().getId());
+        return details;
     }
 
     private void ensureCodeAvailable(String code, UUID currentResourceId) {

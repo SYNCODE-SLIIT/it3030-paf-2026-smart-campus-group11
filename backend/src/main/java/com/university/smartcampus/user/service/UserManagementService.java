@@ -29,6 +29,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.persistence.criteria.JoinType;
 
+import com.university.smartcampus.audit.AuditEnums.AuditDomain;
+import com.university.smartcampus.audit.AuditEventService;
 import com.university.smartcampus.auth.identity.AuthIdentityClient;
 import com.university.smartcampus.auth.provider.AuthProviderClient;
 import com.university.smartcampus.auth.service.CurrentUserService;
@@ -96,7 +98,7 @@ public class UserManagementService {
     private final ProfileImageStorageClient profileImageStorageClient;
     private final SmartCampusProperties properties;
     private final UserIdentifierService userIdentifierService;
-    private final AuditLogService auditLogService;
+    private final AuditEventService auditEventService;
     private final TicketRepository ticketRepository;
     private final PlatformTransactionManager transactionManager;
 
@@ -111,7 +113,7 @@ public class UserManagementService {
             ProfileImageStorageClient profileImageStorageClient,
             SmartCampusProperties properties,
             UserIdentifierService userIdentifierService,
-            AuditLogService auditLogService,
+            AuditEventService auditEventService,
             TicketRepository ticketRepository,
             PlatformTransactionManager transactionManager) {
         this.userRepository = userRepository;
@@ -124,7 +126,7 @@ public class UserManagementService {
         this.profileImageStorageClient = profileImageStorageClient;
         this.properties = properties;
         this.userIdentifierService = userIdentifierService;
-        this.auditLogService = auditLogService;
+        this.auditEventService = auditEventService;
         this.ticketRepository = ticketRepository;
         this.transactionManager = transactionManager;
     }
@@ -374,7 +376,25 @@ public class UserManagementService {
             String normalizedEmail = currentUserService.normalizeEmail(email);
             userRepository.findByEmailIgnoreCase(normalizedEmail)
                     .filter(user -> user.getAccountStatus() != AccountStatus.SUSPENDED)
-                    .ifPresent(user -> recordDelivery(user, authProviderClient.sendMagicLink(user.getEmail())));
+                    .ifPresent(user -> {
+                        AuthProviderClient.DeliveryResult delivery = authProviderClient.sendMagicLink(user.getEmail());
+                        recordDelivery(user, delivery);
+
+                        Map<String, Object> details = new LinkedHashMap<>();
+                        details.put("deliveryMethod", delivery.deliveryMethod() == null ? null : delivery.deliveryMethod().name());
+                        details.put("redirectUri", delivery.redirectUri());
+                        details.put("inviteSendCount", user.getInviteSendCount());
+                        auditEventService.recordAnonymous(
+                            AuditDomain.AUTH,
+                            "LOGIN_LINK_REQUESTED",
+                            "Login Link Requested",
+                            user,
+                            "USER",
+                            user.getId(),
+                            user.getEmail(),
+                            details
+                        );
+                    });
         }
 
         return new MessageResponse("If the account exists, a sign-in email has been sent.");
@@ -386,7 +406,25 @@ public class UserManagementService {
             String normalizedEmail = currentUserService.normalizeEmail(email);
             userRepository.findByEmailIgnoreCase(normalizedEmail)
                     .filter(user -> user.getAccountStatus() != AccountStatus.SUSPENDED)
-                    .ifPresent(user -> recordDelivery(user, deliveryForAccountRecovery(user)));
+                    .ifPresent(user -> {
+                        AuthProviderClient.DeliveryResult delivery = deliveryForAccountRecovery(user);
+                        recordDelivery(user, delivery);
+
+                        Map<String, Object> details = new LinkedHashMap<>();
+                        details.put("deliveryMethod", delivery.deliveryMethod() == null ? null : delivery.deliveryMethod().name());
+                        details.put("redirectUri", delivery.redirectUri());
+                        details.put("inviteSendCount", user.getInviteSendCount());
+                        auditEventService.recordAnonymous(
+                            AuditDomain.AUTH,
+                            "PASSWORD_RESET_REQUESTED",
+                            "Password Reset Requested",
+                            user,
+                            "USER",
+                            user.getId(),
+                            user.getEmail(),
+                            details
+                        );
+                    });
         }
 
         return new MessageResponse("If the account exists, a password reset email has been sent.");
@@ -459,6 +497,8 @@ public class UserManagementService {
         CurrentUserService.ResolvedUserResult resolvedUser = currentUserService.resolveProvisionedUser(jwt);
         UUID subject = currentUserService.subjectFromJwt(jwt);
         UserEntity user = resolvedUser.user();
+        UUID previousAuthUserId = user.getAuthUserId();
+        AccountStatus previousAccountStatus = user.getAccountStatus();
 
         if (user.getAccountStatus() == AccountStatus.SUSPENDED) {
             throw new ForbiddenException("This account is suspended.");
@@ -483,6 +523,61 @@ public class UserManagementService {
             }
         }
 
+        Map<String, Object> sessionDetails = new LinkedHashMap<>();
+        sessionDetails.put("emailFallbackUsed", resolvedUser.emailFallbackUsed());
+        sessionDetails.put("authSubject", subject);
+        sessionDetails.put("previousAccountStatus", enumName(previousAccountStatus));
+        sessionDetails.put("currentAccountStatus", enumName(user.getAccountStatus()));
+        sessionDetails.put("nextStep", nextStep(user));
+        auditEventService.record(
+            AuditDomain.AUTH,
+            "SESSION_SYNCED",
+            "Session Synced",
+            user,
+            user,
+            "USER",
+            user.getId(),
+            user.getEmail(),
+            sessionDetails
+        );
+
+        if (previousAuthUserId == null && user.getAuthUserId() != null) {
+            Map<String, Object> accountLinkedDetails = new LinkedHashMap<>();
+            accountLinkedDetails.put("authSubject", user.getAuthUserId());
+            accountLinkedDetails.put("emailFallbackUsed", resolvedUser.emailFallbackUsed());
+            auditEventService.record(
+                AuditDomain.AUTH,
+                "ACCOUNT_LINKED",
+                "Account Linked",
+                user,
+                user,
+                "USER",
+                user.getId(),
+                user.getEmail(),
+                accountLinkedDetails
+            );
+        }
+
+        if (previousAccountStatus == AccountStatus.INVITED
+                && user.getAccountStatus() == AccountStatus.ACTIVE
+                && user.getUserType() != UserType.STUDENT) {
+            Map<String, Object> activationDetails = new LinkedHashMap<>();
+            activationDetails.put("oldStatus", enumName(previousAccountStatus));
+            activationDetails.put("newStatus", enumName(user.getAccountStatus()));
+            activationDetails.put("activatedAt", user.getActivatedAt());
+            auditEventService.record(
+                AuditDomain.AUTH,
+                "FIRST_LOGIN_ACTIVATED",
+                "First Login Activated",
+                user,
+                user,
+                "USER",
+                user.getId(),
+                user.getEmail(),
+                activationDetails
+            );
+        }
+
         return new SessionSyncResponse(userMapper.toUserResponse(user), nextStep(user));
     }
 
@@ -503,6 +598,7 @@ public class UserManagementService {
     public UserResponse completeStudentOnboarding(UserEntity user, StudentOnboardingRequest request) {
         UserEntity managedUser = getUserEntity(user.getId());
         ensureStudent(managedUser);
+        AccountStatus previousAccountStatus = managedUser.getAccountStatus();
 
         StudentEntity student = managedUser.getStudentProfile();
         if (student == null) {
@@ -534,6 +630,29 @@ public class UserManagementService {
 
         studentRepository.save(student);
         userRepository.save(managedUser);
+
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("firstName", student.getFirstName());
+        details.put("lastName", student.getLastName());
+        details.put("facultyName", enumName(student.getFacultyName()));
+        details.put("programName", enumName(student.getProgramName()));
+        details.put("academicYear", enumName(student.getAcademicYear()));
+        details.put("semester", enumName(student.getSemester()));
+        details.put("registrationNumber", student.getRegistrationNumber());
+        details.put("previousAccountStatus", enumName(previousAccountStatus));
+        details.put("currentAccountStatus", enumName(managedUser.getAccountStatus()));
+        auditEventService.record(
+            AuditDomain.USER,
+            "STUDENT_ONBOARDING_COMPLETED",
+            "Student Onboarding Completed",
+            managedUser,
+            managedUser,
+            "USER",
+            managedUser.getId(),
+            managedUser.getEmail(),
+            details
+        );
+
         return userMapper.toUserResponse(managedUser);
     }
 
@@ -552,6 +671,23 @@ public class UserManagementService {
         student.setProfileImageUrl(storedImage.publicUrl());
 
         studentRepository.save(student);
+
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("profileImageUrl", storedImage.publicUrl());
+        details.put("contentType", file.getContentType());
+        details.put("fileName", file.getOriginalFilename());
+        auditEventService.record(
+            AuditDomain.USER,
+            "STUDENT_PROFILE_IMAGE_UPLOADED",
+            "Student Profile Image Uploaded",
+            managedUser,
+            managedUser,
+            "USER",
+            managedUser.getId(),
+            managedUser.getEmail(),
+            details
+        );
+
         return userMapper.toUserResponse(managedUser);
     }
 
@@ -915,14 +1051,29 @@ public class UserManagementService {
             return;
         }
 
-        auditLogService.logAction(
-            action,
-            performedByAdmin.getId(),
-            performedByAdmin.getEmail(),
+        auditEventService.record(
+            AuditDomain.USER,
+            action.name(),
+            actionLabel(action),
+            performedByAdmin,
+            targetUser,
+            "USER",
             targetUser.getId(),
             targetUser.getEmail(),
             details
         );
+    }
+
+    private String actionLabel(AdminAction action) {
+        return switch (action) {
+            case USER_CREATED -> "User Created";
+            case USER_UPDATED -> "User Updated";
+            case USER_SUSPENDED -> "User Suspended";
+            case USER_ACTIVATED -> "User Activated";
+            case USER_DELETED -> "User Deleted";
+            case INVITE_RESENT -> "Invite Resent";
+            case MANAGER_ROLE_CHANGED -> "Manager Role Changed";
+        };
     }
 
     private Map<String, Object> snapshotForAudit(UserEntity user) {

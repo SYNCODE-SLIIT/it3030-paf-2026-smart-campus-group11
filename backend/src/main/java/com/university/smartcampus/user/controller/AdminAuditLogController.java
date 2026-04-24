@@ -11,10 +11,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.university.smartcampus.audit.AuditDtos.AuditEventPageResponse;
+import com.university.smartcampus.audit.AuditEnums.AuditActorType;
+import com.university.smartcampus.audit.AuditEnums.AuditDomain;
+import com.university.smartcampus.audit.AuditEventService;
+import com.university.smartcampus.audit.AuditEventService.AuditEventFilters;
 import com.university.smartcampus.auth.service.CurrentUserService;
-import com.university.smartcampus.common.enums.AppEnums.AdminAction;
-import com.university.smartcampus.user.dto.AuditDtos.AuditLogPageResponse;
-import com.university.smartcampus.user.service.AuditLogService;
 
 @RestController
 @RequestMapping("/api/admin/audit-logs")
@@ -24,34 +26,55 @@ public class AdminAuditLogController {
     private static final int MAX_PAGE_SIZE = 100;
 
     private final CurrentUserService currentUserService;
-    private final AuditLogService auditLogService;
+    private final AuditEventService auditEventService;
 
-    public AdminAuditLogController(CurrentUserService currentUserService, AuditLogService auditLogService) {
+    public AdminAuditLogController(CurrentUserService currentUserService, AuditEventService auditEventService) {
         this.currentUserService = currentUserService;
-        this.auditLogService = auditLogService;
+        this.auditEventService = auditEventService;
     }
 
     @GetMapping
-    public AuditLogPageResponse listAuditLogs(
-            @RequestParam(required = false) AdminAction action,
-            @RequestParam(required = false) UUID performedById,
+    public AuditEventPageResponse listAuditLogs(
+            @RequestParam(required = false) AuditDomain domain,
+            @RequestParam(required = false) String actionCode,
+            @RequestParam(required = false) UUID actorUserId,
+            @RequestParam(required = false) String actorEmail,
+            @RequestParam(required = false) AuditActorType actorType,
+            @RequestParam(required = false) UUID subjectUserId,
+            @RequestParam(required = false) String subjectUserEmail,
+            @RequestParam(required = false) String entityType,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             Authentication authentication) {
         currentUserService.requireAdmin(authentication);
-        return auditLogService.getRecentLogs(action, performedById, from, to, safePage(page), safeSize(size));
+        return auditEventService.getRecentEvents(
+            new AuditEventFilters(
+                domain,
+                actionCode,
+                actorUserId,
+                actorEmail,
+                actorType,
+                subjectUserId,
+                subjectUserEmail,
+                entityType,
+                from,
+                to
+            ),
+            safePage(page),
+            safeSize(size)
+        );
     }
 
     @GetMapping("/user/{userId}")
-    public AuditLogPageResponse listAuditLogsForUser(
+    public AuditEventPageResponse listAuditLogsForUser(
             @PathVariable UUID userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             Authentication authentication) {
         currentUserService.requireAdmin(authentication);
-        return auditLogService.getLogsByTargetUser(userId, safePage(page), safeSize(size));
+        return auditEventService.getEventsForUser(userId, safePage(page), safeSize(size));
     }
 
     private int safePage(int page) {

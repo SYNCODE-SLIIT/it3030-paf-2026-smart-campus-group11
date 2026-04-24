@@ -21,6 +21,7 @@ import com.university.smartcampus.resource.BuildingDtos.BuildingResponse;
 import com.university.smartcampus.resource.BuildingDtos.CreateBuildingRequest;
 import com.university.smartcampus.resource.BuildingDtos.UpdateBuildingRequest;
 import com.university.smartcampus.resource.BuildingService;
+import com.university.smartcampus.user.entity.UserEntity;
 
 import jakarta.validation.Valid;
 
@@ -45,8 +46,8 @@ public class AdminBuildingController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public BuildingResponse createBuilding(@Valid @RequestBody CreateBuildingRequest request, Authentication authentication) {
-        currentUserService.requireAdmin(authentication);
-        return buildingService.createBuilding(request);
+        UserEntity actor = currentUserService.requireAdmin(authentication);
+        return buildingService.createBuilding(request, actor);
     }
 
     @PatchMapping("/{id}")
@@ -55,13 +56,13 @@ public class AdminBuildingController {
         @Valid @RequestBody UpdateBuildingRequest request,
         Authentication authentication
     ) {
-        currentUserService.requireAdmin(authentication);
-        return buildingService.updateBuilding(id, request);
+        UserEntity actor = currentUserService.requireAdmin(authentication);
+        return buildingService.updateBuilding(id, request, actor);
     }
 
     @DeleteMapping("/{id}")
     public MessageResponse deactivateBuilding(@PathVariable UUID id, Authentication authentication) {
-        currentUserService.requireAdmin(authentication);
-        return buildingService.deactivateBuilding(id);
+        UserEntity actor = currentUserService.requireAdmin(authentication);
+        return buildingService.deactivateBuilding(id, actor);
     }
 }

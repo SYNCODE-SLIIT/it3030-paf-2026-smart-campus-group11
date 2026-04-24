@@ -61,6 +61,7 @@ public class AuditLogService {
     public AuditLogPageResponse getRecentLogs(
             AdminAction action,
             UUID performedById,
+            String targetUserEmail,
             Instant from,
             Instant to,
             int page,
@@ -74,6 +75,12 @@ public class AuditLogService {
 
         if (performedById != null) {
             specification = specification.and((root, query, cb) -> cb.equal(root.get("performedById"), performedById));
+        }
+
+        if (targetUserEmail != null && !targetUserEmail.isBlank()) {
+            String normalizedTargetUserEmail = "%" + targetUserEmail.trim().toLowerCase() + "%";
+            specification = specification.and((root, query, cb) ->
+                cb.like(cb.lower(root.get("targetUserEmail")), normalizedTargetUserEmail));
         }
 
         if (from != null) {

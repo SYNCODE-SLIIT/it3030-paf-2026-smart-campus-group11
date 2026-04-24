@@ -17,6 +17,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.university.smartcampus.AppEnums.ResourceCategory;
+import com.university.smartcampus.audit.AuditEventService;
 import com.university.smartcampus.common.exception.BadRequestException;
 import com.university.smartcampus.resource.ResourceTypeDtos.CreateResourceTypeRequest;
 import com.university.smartcampus.resource.ResourceTypeDtos.ResourceTypeResponse;
@@ -31,6 +32,9 @@ class ResourceTypeServiceTest {
     @Mock
     private ResourceRepository resourceRepository;
 
+    @Mock
+    private AuditEventService auditEventService;
+
     private ResourceTypeService resourceTypeService;
 
     @BeforeEach
@@ -38,7 +42,8 @@ class ResourceTypeServiceTest {
         resourceTypeService = new ResourceTypeService(
             resourceTypeRepository,
             resourceRepository,
-            new ResourceTypeMapper()
+            new ResourceTypeMapper(),
+            auditEventService
         );
     }
 

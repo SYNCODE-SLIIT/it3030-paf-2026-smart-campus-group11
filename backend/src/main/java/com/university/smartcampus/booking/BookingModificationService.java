@@ -1,6 +1,8 @@
 package com.university.smartcampus.booking;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -8,6 +10,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.university.smartcampus.AppEnums.ModificationStatus;
+import com.university.smartcampus.audit.AuditEnums.AuditDomain;
+import com.university.smartcampus.audit.AuditEventService;
 import com.university.smartcampus.common.exception.BadRequestException;
 import com.university.smartcampus.common.exception.ForbiddenException;
 import com.university.smartcampus.common.exception.NotFoundException;
@@ -22,19 +26,22 @@ public class BookingModificationService {
     private final BookingValidator bookingValidator;
     private final NotificationService notificationService;
     private final BookingResourceAvailabilityService bookingResourceAvailabilityService;
+    private final AuditEventService auditEventService;
 
     public BookingModificationService(
         BookingModificationRepository modificationRepository,
         BookingRepository bookingRepository,
         BookingValidator bookingValidator,
         NotificationService notificationService,
-        BookingResourceAvailabilityService bookingResourceAvailabilityService
+        BookingResourceAvailabilityService bookingResourceAvailabilityService,
+        AuditEventService auditEventService
     ) {
         this.modificationRepository = modificationRepository;
         this.bookingRepository = bookingRepository;
         this.bookingValidator = bookingValidator;
         this.notificationService = notificationService;
         this.bookingResourceAvailabilityService = bookingResourceAvailabilityService;
+        this.auditEventService = auditEventService;
     }
 
     @Transactional
@@ -80,6 +87,17 @@ public class BookingModificationService {
         modification.setStatus(ModificationStatus.PENDING);
 
         BookingModificationEntity saved = modificationRepository.save(modification);
+        auditEventService.record(
+            AuditDomain.BOOKING,
+            "BOOKING_MODIFICATION_REQUESTED",
+            "Booking Modification Requested",
+            requester,
+            booking.getRequester(),
+            "BOOKING_MODIFICATION",
+            saved.getId(),
+            bookingAuditLabel(booking),
+            modificationAuditDetails(saved)
+        );
         notificationService.notifyModificationRequested(saved);
         return toModificationResponse(saved);
     }
@@ -127,6 +145,17 @@ public class BookingModificationService {
         modification.setDecisionReason(request != null ? request.decisionReason() : null);
 
         BookingModificationEntity saved = modificationRepository.save(modification);
+        auditEventService.record(
+            AuditDomain.BOOKING,
+            "BOOKING_MODIFICATION_APPROVED",
+            "Booking Modification Approved",
+            approver,
+            booking.getRequester(),
+            "BOOKING_MODIFICATION",
+            saved.getId(),
+            bookingAuditLabel(booking),
+            modificationAuditDetails(saved)
+        );
         notificationService.notifyModificationApproved(saved);
         return toModificationResponse(saved);
     }
@@ -153,6 +182,17 @@ public class BookingModificationService {
         modification.setDecisionReason(request != null ? request.decisionReason() : null);
 
         BookingModificationEntity saved = modificationRepository.save(modification);
+        auditEventService.record(
+            AuditDomain.BOOKING,
+            "BOOKING_MODIFICATION_REJECTED",
+            "Booking Modification Rejected",
+            rejecter,
+            modification.getBooking().getRequester(),
+            "BOOKING_MODIFICATION",
+            saved.getId(),
+            bookingAuditLabel(modification.getBooking()),
+            modificationAuditDetails(saved)
+        );
         notificationService.notifyModificationRejected(saved);
         return toModificationResponse(saved);
     }
@@ -183,5 +223,22 @@ public class BookingModificationService {
             modification.getDecidedAt(),
             modification.getDecisionReason()
         );
+    }
+
+    private String bookingAuditLabel(BookingEntity booking) {
+        String resourceCode = booking.getResource() == null ? "Unknown resource" : booking.getResource().getCode();
+        return resourceCode + " @ " + booking.getStartTime();
+    }
+
+    private Map<String, Object> modificationAuditDetails(BookingModificationEntity modification) {
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("bookingId", modification.getBooking() == null ? null : modification.getBooking().getId());
+        details.put("requestedBy", modification.getRequestedBy() == null ? null : modification.getRequestedBy().getId());
+        details.put("requestedStartTime", modification.getRequestedStartTime());
+        details.put("requestedEndTime", modification.getRequestedEndTime());
+        details.put("status", modification.getStatus() == null ? null : modification.getStatus().name());
+        details.put("reason", modification.getReason());
+        details.put("decisionReason", modification.getDecisionReason());
+        return details;
     }
 }

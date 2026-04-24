@@ -22,6 +22,7 @@ import com.university.smartcampus.resource.LocationDtos.CreateLocationRequest;
 import com.university.smartcampus.resource.LocationDtos.LocationResponse;
 import com.university.smartcampus.resource.LocationDtos.UpdateLocationRequest;
 import com.university.smartcampus.resource.LocationService;
+import com.university.smartcampus.user.entity.UserEntity;
 
 import jakarta.validation.Valid;
 
@@ -52,8 +53,8 @@ public class CatalogueLocationController {
     @PostMapping("/locations")
     @ResponseStatus(HttpStatus.CREATED)
     public LocationResponse createLocation(@Valid @RequestBody CreateLocationRequest request, Authentication authentication) {
-        currentUserService.requireAdminOrCatalogManager(authentication);
-        return locationService.createLocation(request);
+        UserEntity actor = currentUserService.requireAdminOrCatalogManager(authentication);
+        return locationService.createLocation(request, actor);
     }
 
     @PatchMapping("/locations/{id}")
@@ -62,13 +63,13 @@ public class CatalogueLocationController {
         @Valid @RequestBody UpdateLocationRequest request,
         Authentication authentication
     ) {
-        currentUserService.requireAdminOrCatalogManager(authentication);
-        return locationService.updateLocation(id, request);
+        UserEntity actor = currentUserService.requireAdminOrCatalogManager(authentication);
+        return locationService.updateLocation(id, request, actor);
     }
 
     @DeleteMapping("/locations/{id}")
     public MessageResponse deleteLocation(@PathVariable UUID id, Authentication authentication) {
-        currentUserService.requireAdminOrCatalogManager(authentication);
-        return locationService.deleteLocation(id);
+        UserEntity actor = currentUserService.requireAdminOrCatalogManager(authentication);
+        return locationService.deleteLocation(id, actor);
     }
 }

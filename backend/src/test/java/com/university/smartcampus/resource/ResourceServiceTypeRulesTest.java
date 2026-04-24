@@ -21,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.university.smartcampus.AppEnums.ResourceCategory;
 import com.university.smartcampus.AppEnums.ResourceStatus;
+import com.university.smartcampus.audit.AuditEventService;
 import com.university.smartcampus.common.exception.BadRequestException;
 import com.university.smartcampus.notification.NotificationService;
 import com.university.smartcampus.resource.ResourceDtos.AvailabilityWindowRequest;
@@ -46,6 +47,9 @@ class ResourceServiceTypeRulesTest {
     @Mock
     private NotificationService notificationService;
 
+    @Mock
+    private AuditEventService auditEventService;
+
     private ResourceService resourceService;
 
     @BeforeEach
@@ -56,7 +60,8 @@ class ResourceServiceTypeRulesTest {
             locationRepository,
             resourceFeatureRepository,
             new ResourceMapper(),
-            notificationService
+            notificationService,
+            auditEventService
         );
     }
 

@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import com.university.smartcampus.AppEnums.BookingStatus;
 import com.university.smartcampus.AppEnums.CheckInStatus;
 import com.university.smartcampus.AppEnums.ResourceCategory;
+import com.university.smartcampus.audit.AuditEventService;
 import com.university.smartcampus.notification.NotificationService;
 import com.university.smartcampus.resource.ResourceEntity;
 
@@ -24,12 +25,14 @@ class BookingCheckInServiceTest {
     private final BookingValidator bookingValidator = mock(BookingValidator.class);
     private final BookingResourceAvailabilityService bookingResourceAvailabilityService = mock(BookingResourceAvailabilityService.class);
     private final NotificationService notificationService = mock(NotificationService.class);
+    private final AuditEventService auditEventService = mock(AuditEventService.class);
 
     private final BookingCheckInService bookingCheckInService = new BookingCheckInService(
         bookingRepository,
         bookingValidator,
         bookingResourceAvailabilityService,
-        notificationService
+        notificationService,
+        auditEventService
     );
 
     @Test

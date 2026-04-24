@@ -64,8 +64,8 @@ class AdminBookingCheckInController {
         @PathVariable UUID bookingId,
         Authentication authentication
     ) {
-        currentUserService.requireAdminOrBookingManager(authentication);
-        return checkInService.markNoShow(bookingId);
+        UserEntity actor = currentUserService.requireAdminOrBookingManager(authentication);
+        return checkInService.markNoShow(bookingId, actor);
     }
 
     @PostMapping("/complete")
@@ -73,7 +73,7 @@ class AdminBookingCheckInController {
         @PathVariable UUID bookingId,
         Authentication authentication
     ) {
-        currentUserService.requireAdminOrBookingManager(authentication);
-        return checkInService.completeBooking(bookingId);
+        UserEntity actor = currentUserService.requireAdminOrBookingManager(authentication);
+        return checkInService.completeBooking(bookingId, actor);
     }
 }

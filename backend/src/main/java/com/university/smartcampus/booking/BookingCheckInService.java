@@ -1,7 +1,9 @@
 package com.university.smartcampus.booking;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -11,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.university.smartcampus.AppEnums.BookingStatus;
 import com.university.smartcampus.AppEnums.CheckInStatus;
 import com.university.smartcampus.AppEnums.ResourceCategory;
+import com.university.smartcampus.audit.AuditEnums.AuditDomain;
+import com.university.smartcampus.audit.AuditEventService;
 import com.university.smartcampus.common.exception.BadRequestException;
 import com.university.smartcampus.common.exception.ForbiddenException;
 import com.university.smartcampus.common.exception.NotFoundException;
@@ -24,17 +28,20 @@ public class BookingCheckInService {
     private final BookingValidator bookingValidator;
     private final BookingResourceAvailabilityService bookingResourceAvailabilityService;
     private final NotificationService notificationService;
+    private final AuditEventService auditEventService;
 
     public BookingCheckInService(
         BookingRepository bookingRepository,
         BookingValidator bookingValidator,
         BookingResourceAvailabilityService bookingResourceAvailabilityService,
-        NotificationService notificationService
+        NotificationService notificationService,
+        AuditEventService auditEventService
     ) {
         this.bookingRepository = bookingRepository;
         this.bookingValidator = bookingValidator;
         this.bookingResourceAvailabilityService = bookingResourceAvailabilityService;
         this.notificationService = notificationService;
+        this.auditEventService = auditEventService;
     }
 
     @Transactional
@@ -68,6 +75,17 @@ public class BookingCheckInService {
         booking.setStatus(BookingStatus.CHECKED_IN);
 
         BookingEntity saved = bookingRepository.save(booking);
+        auditEventService.record(
+            AuditDomain.BOOKING,
+            "BOOKING_CHECKED_IN",
+            "Booking Checked In",
+            user,
+            saved.getRequester(),
+            "BOOKING",
+            saved.getId(),
+            bookingAuditLabel(saved),
+            bookingAuditDetails(saved)
+        );
         return new BookingDtos.CheckInResponse(
             saved.getId(),
             saved.getCheckInStatus(),
@@ -77,6 +95,11 @@ public class BookingCheckInService {
 
     @Transactional
     public BookingDtos.CheckInResponse markNoShow(UUID bookingId) {
+        return markNoShow(bookingId, null);
+    }
+
+    @Transactional
+    public BookingDtos.CheckInResponse markNoShow(UUID bookingId, UserEntity actor) {
         Objects.requireNonNull(bookingId, "Booking ID is required.");
 
         BookingEntity booking = bookingRepository.findById(bookingId)
@@ -97,6 +120,30 @@ public class BookingCheckInService {
         booking.setStatus(BookingStatus.NO_SHOW);
 
         BookingEntity saved = bookingRepository.save(booking);
+        if (actor == null) {
+            auditEventService.recordSystem(
+                AuditDomain.BOOKING,
+                "BOOKING_NO_SHOW",
+                "Booking No Show",
+                saved.getRequester(),
+                "BOOKING",
+                saved.getId(),
+                bookingAuditLabel(saved),
+                bookingAuditDetails(saved)
+            );
+        } else {
+            auditEventService.record(
+                AuditDomain.BOOKING,
+                "BOOKING_NO_SHOW",
+                "Booking No Show",
+                actor,
+                saved.getRequester(),
+                "BOOKING",
+                saved.getId(),
+                bookingAuditLabel(saved),
+                bookingAuditDetails(saved)
+            );
+        }
         notificationService.notifyBookingNoShow(saved);
         return new BookingDtos.CheckInResponse(
             saved.getId(),
@@ -107,6 +154,11 @@ public class BookingCheckInService {
 
     @Transactional
     public BookingDtos.CheckInResponse completeBooking(UUID bookingId) {
+        return completeBooking(bookingId, null);
+    }
+
+    @Transactional
+    public BookingDtos.CheckInResponse completeBooking(UUID bookingId, UserEntity actor) {
         Objects.requireNonNull(bookingId, "Booking ID is required.");
 
         BookingEntity booking = bookingRepository.findById(bookingId)
@@ -126,6 +178,30 @@ public class BookingCheckInService {
         booking.setStatus(BookingStatus.COMPLETED);
 
         BookingEntity saved = bookingRepository.save(booking);
+        if (actor == null) {
+            auditEventService.recordSystem(
+                AuditDomain.BOOKING,
+                "BOOKING_COMPLETED",
+                "Booking Completed",
+                saved.getRequester(),
+                "BOOKING",
+                saved.getId(),
+                bookingAuditLabel(saved),
+                bookingAuditDetails(saved)
+            );
+        } else {
+            auditEventService.record(
+                AuditDomain.BOOKING,
+                "BOOKING_COMPLETED",
+                "Booking Completed",
+                actor,
+                saved.getRequester(),
+                "BOOKING",
+                saved.getId(),
+                bookingAuditLabel(saved),
+                bookingAuditDetails(saved)
+            );
+        }
         notificationService.notifyBookingCompleted(saved);
         return new BookingDtos.CheckInResponse(
             saved.getId(),
@@ -167,6 +243,16 @@ public class BookingCheckInService {
             booking.setStatus(BookingStatus.NO_SHOW);
 
             BookingEntity saved = bookingRepository.save(booking);
+            auditEventService.recordSystem(
+                AuditDomain.BOOKING,
+                "BOOKING_NO_SHOW",
+                "Booking No Show",
+                saved.getRequester(),
+                "BOOKING",
+                saved.getId(),
+                bookingAuditLabel(saved),
+                bookingAuditDetails(saved)
+            );
             notificationService.notifyBookingNoShow(saved);
         }
     }
@@ -184,6 +270,16 @@ public class BookingCheckInService {
             booking.setStatus(BookingStatus.COMPLETED);
 
             BookingEntity saved = bookingRepository.save(booking);
+            auditEventService.recordSystem(
+                AuditDomain.BOOKING,
+                "BOOKING_COMPLETED",
+                "Booking Completed",
+                saved.getRequester(),
+                "BOOKING",
+                saved.getId(),
+                bookingAuditLabel(saved),
+                bookingAuditDetails(saved)
+            );
             notificationService.notifyBookingCompleted(saved);
         }
     }
@@ -210,5 +306,22 @@ public class BookingCheckInService {
             && !booking.getEndTime().isAfter(now)
             && booking.getResource() != null
             && booking.getResource().getCategory() == ResourceCategory.SPACES;
+    }
+
+    private String bookingAuditLabel(BookingEntity booking) {
+        String resourceCode = booking.getResource() == null ? "Unknown resource" : booking.getResource().getCode();
+        return resourceCode + " @ " + booking.getStartTime();
+    }
+
+    private Map<String, Object> bookingAuditDetails(BookingEntity booking) {
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("resourceId", booking.getResource() == null ? null : booking.getResource().getId());
+        details.put("resourceCode", booking.getResource() == null ? null : booking.getResource().getCode());
+        details.put("requesterId", booking.getRequester() == null ? null : booking.getRequester().getId());
+        details.put("status", booking.getStatus() == null ? null : booking.getStatus().name());
+        details.put("checkInStatus", booking.getCheckInStatus() == null ? null : booking.getCheckInStatus().name());
+        details.put("startTime", booking.getStartTime());
+        details.put("endTime", booking.getEndTime());
+        return details;
     }
 }

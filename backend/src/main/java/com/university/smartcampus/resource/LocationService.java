@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import com.university.smartcampus.audit.AuditEnums.AuditDomain;
+import com.university.smartcampus.audit.AuditEventService;
 import com.university.smartcampus.common.dto.ApiDtos.MessageResponse;
 import com.university.smartcampus.common.exception.BadRequestException;
 import com.university.smartcampus.common.exception.ConflictException;
@@ -17,6 +19,7 @@ import com.university.smartcampus.resource.BuildingDtos.BuildingResponse;
 import com.university.smartcampus.resource.LocationDtos.CreateLocationRequest;
 import com.university.smartcampus.resource.LocationDtos.LocationResponse;
 import com.university.smartcampus.resource.LocationDtos.UpdateLocationRequest;
+import com.university.smartcampus.user.entity.UserEntity;
 
 @Service
 public class LocationService {
@@ -45,19 +48,22 @@ public class LocationService {
     private final ResourceRepository resourceRepository;
     private final BuildingMapper buildingMapper;
     private final LocationMapper locationMapper;
+    private final AuditEventService auditEventService;
 
     public LocationService(
         LocationRepository locationRepository,
         BuildingRepository buildingRepository,
         ResourceRepository resourceRepository,
         BuildingMapper buildingMapper,
-        LocationMapper locationMapper
+        LocationMapper locationMapper,
+        AuditEventService auditEventService
     ) {
         this.locationRepository = locationRepository;
         this.buildingRepository = buildingRepository;
         this.resourceRepository = resourceRepository;
         this.buildingMapper = buildingMapper;
         this.locationMapper = locationMapper;
+        this.auditEventService = auditEventService;
     }
 
     @Transactional(readOnly = true)
@@ -76,6 +82,11 @@ public class LocationService {
 
     @Transactional
     public LocationResponse createLocation(CreateLocationRequest request) {
+        return createLocation(request, null);
+    }
+
+    @Transactional
+    public LocationResponse createLocation(CreateLocationRequest request, UserEntity actor) {
         Building building = requireActiveBuilding(request.buildingId());
         String normalizedName = normalizeRequiredLocationName(request.locationName());
         String normalizedType = normalizeRequiredLocationType(request.locationType());
@@ -94,11 +105,33 @@ public class LocationService {
         location.setLocationType(normalizedType);
         location.setFloor(normalizedFloor);
 
-        return locationMapper.toResponse(locationRepository.save(location));
+        Location saved = locationRepository.save(location);
+        auditEventService.record(
+            AuditDomain.CATALOG,
+            "LOCATION_CREATED",
+            "Location Created",
+            actor,
+            null,
+            "LOCATION",
+            saved.getId(),
+            saved.getRoomCode() + " - " + saved.getLocationName(),
+            java.util.Map.of(
+                "buildingId", saved.getBuilding() == null ? null : saved.getBuilding().getId(),
+                "buildingName", saved.getBuildingName(),
+                "roomCode", saved.getRoomCode(),
+                "locationType", saved.getLocationType()
+            )
+        );
+        return locationMapper.toResponse(saved);
     }
 
     @Transactional
     public LocationResponse updateLocation(UUID id, UpdateLocationRequest request) {
+        return updateLocation(id, request, null);
+    }
+
+    @Transactional
+    public LocationResponse updateLocation(UUID id, UpdateLocationRequest request, UserEntity actor) {
         Location location = getLocation(id);
         Building nextBuilding = location.getBuilding();
         if (request.buildingId() != null) {
@@ -136,16 +169,54 @@ public class LocationService {
         location.setFloor(nextFloor);
         location.setRoomCode(nextRoomCode);
 
+        auditEventService.record(
+            AuditDomain.CATALOG,
+            "LOCATION_UPDATED",
+            "Location Updated",
+            actor,
+            null,
+            "LOCATION",
+            location.getId(),
+            location.getRoomCode() + " - " + location.getLocationName(),
+            java.util.Map.of(
+                "buildingId", location.getBuilding() == null ? null : location.getBuilding().getId(),
+                "buildingName", location.getBuildingName(),
+                "roomCode", location.getRoomCode(),
+                "locationType", location.getLocationType()
+            )
+        );
+
         return locationMapper.toResponse(location);
     }
 
     @Transactional
     public MessageResponse deleteLocation(UUID id) {
+        return deleteLocation(id, null);
+    }
+
+    @Transactional
+    public MessageResponse deleteLocation(UUID id, UserEntity actor) {
         if (resourceRepository.existsByLocationEntity_Id(id)) {
             throw new ConflictException("This location is already assigned to one or more resources and cannot be removed.");
         }
 
         Location location = getLocation(id);
+        auditEventService.record(
+            AuditDomain.CATALOG,
+            "LOCATION_DELETED",
+            "Location Deleted",
+            actor,
+            null,
+            "LOCATION",
+            location.getId(),
+            location.getRoomCode() + " - " + location.getLocationName(),
+            java.util.Map.of(
+                "buildingId", location.getBuilding() == null ? null : location.getBuilding().getId(),
+                "buildingName", location.getBuildingName(),
+                "roomCode", location.getRoomCode(),
+                "locationType", location.getLocationType()
+            )
+        );
         locationRepository.delete(location);
         return new MessageResponse("Location removed.");
     }
