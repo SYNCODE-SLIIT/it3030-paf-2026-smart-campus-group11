@@ -1057,11 +1057,11 @@ public class NotificationService {
         if (comment != null) {
             links.add(NotificationLink.ticketComment(comment.getId()));
         }
-        if (ticket.getResourceId() != null) {
-            links.add(NotificationLink.resource(ticket.getResourceId()));
+        if (ticket.resolveResourceId() != null) {
+            links.add(NotificationLink.resource(ticket.resolveResourceId()));
         }
-        if (ticket.getLocationId() != null) {
-            links.add(NotificationLink.location(ticket.getLocationId()));
+        if (ticket.resolveLocationId() != null) {
+            links.add(NotificationLink.location(ticket.resolveLocationId()));
         }
         return links;
     }

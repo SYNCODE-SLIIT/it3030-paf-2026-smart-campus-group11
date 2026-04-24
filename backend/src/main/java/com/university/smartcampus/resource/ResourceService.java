@@ -428,9 +428,11 @@ public class ResourceService {
         if (!bookingIds.isEmpty()) {
             List<UUID> modificationIds = bookingModificationRepository.findIdsByBookingIdIn(bookingIds);
             if (!modificationIds.isEmpty()) {
+                notificationEventLinkRepository.deleteOrphanBookingModificationReferences(modificationIds);
                 notificationEventLinkRepository.clearBookingModificationReferences(modificationIds);
                 bookingModificationRepository.deleteByBookingIdIn(bookingIds);
             }
+            notificationEventLinkRepository.deleteOrphanBookingReferences(bookingIds);
             notificationEventLinkRepository.clearBookingReferences(bookingIds);
             bookingRepository.deleteByResourceId(resource.getId());
         }
@@ -446,6 +448,7 @@ public class ResourceService {
             ticketRepository.flush();
         }
 
+        notificationEventLinkRepository.deleteOrphanResourceReferences(resource.getId());
         notificationEventLinkRepository.clearResourceReferences(resource.getId());
 
         resource.getFeatures().clear();
